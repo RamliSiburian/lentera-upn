@@ -10,8 +10,12 @@ const appName = import.meta.env.VITE_APP_NAME || 'LENTERA';
 
 createInertiaApp({
   title: (title) => `${title} - ${appName}`,
-  resolve: (name) => resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx')),
+  resolve: (name) => {
+    console.log('Mencari Komponen:', name);
+    return resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx'));
+  },
   setup({ el, App, props }) {
+    console.log('Inisialisasi App dengan Props:', props);
     const root = createRoot(el);
     root.render(<App {...props} />);
   },
