@@ -1,3 +1,4 @@
+console.log('Script app.js BERHASIL DIMUAT!');
 import React from 'react';
 import './bootstrap';
 import '../css/app.css';
