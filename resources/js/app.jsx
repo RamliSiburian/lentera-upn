@@ -32,8 +32,19 @@ import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 const appName = import.meta.env.VITE_APP_NAME || 'LENTERA';
-createInertiaApp({ 
-  title: (title) => `${title} - ${appName}`, 
-  resolve: (name) => { const pages = { ...import.meta.glob('./Pages/**/*.tsx'), ...import.meta.glob('./Pages/**/*.jsx'), }; 
-  return resolvePageComponent(`./Pages/${name}.tsx`, pages) ?? resolvePageComponent(`./Pages/${name}.jsx`, pages); }, 
-  setup({ el, App, props }) { createRoot(el).render(<App {...props} />); }, });                  
+
+const el = typeof window !== 'undefined' ? document.getElementById('app') : null;
+const page = el ? JSON.parse(el.dataset.page) : undefined;
+
+createInertiaApp({
+  title: (title) => `${title} - ${appName}`,
+  page,
+  resolve: (name) => resolvePageComponent(
+    [`./Pages/${name}.tsx`, `./Pages/${name}.jsx`],
+    import.meta.glob('./Pages/**/*.{jsx,tsx}')
+  ),
+  setup({ el, App, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+

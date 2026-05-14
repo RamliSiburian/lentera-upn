@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, useForm } from '@inertiajs/react';
 
-interface Konsentrasi { id: string; nama: string; kode: string; deskripsi: string | null; status: string; }
+interface Konsentrasi { id: string; nama: string; kode: string; deskripsi: string | null; is_active: boolean; }
 interface Props { konsentrasi: Konsentrasi[]; }
 
 const B = {
@@ -182,31 +182,55 @@ export default function KonsentrasiIndex({ konsentrasi }: Props) {
     const [editMode, setEditMode] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [form, setForm] = useState({ nama: '', kode: '', deskripsi: '', status: 'aktif' });
+    
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        nama: '',
+        kode: '',
+        deskripsi: '',
+        is_active: true,
+    });
 
     const openCreate = () => {
-        setEditMode(false); setSelectedId(null);
-        setForm({ nama: '', kode: '', deskripsi: '', status: 'aktif' });
+        setEditMode(false); 
+        setSelectedId(null);
+        reset();
+        clearErrors();
         setShowModal(true);
     };
+
     const openEdit = (k: Konsentrasi) => {
-        setEditMode(true); setSelectedId(k.id);
-        setForm({ nama: k.nama, kode: k.kode, deskripsi: k.deskripsi || '', status: k.status });
+        setEditMode(true); 
+        setSelectedId(k.id);
+        setData({
+            nama: k.nama,
+            kode: k.kode,
+            deskripsi: k.deskripsi || '',
+            is_active: k.is_active,
+        });
+        clearErrors();
         setShowModal(true);
     };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const url = editMode && selectedId ? `/admin/konsentrasi/${selectedId}` : '/admin/konsentrasi';
-        const method = editMode ? router.put : router.post;
-        method(url, form, { onSuccess: () => setShowModal(false) });
+        if (editMode && selectedId) {
+            put(`/admin/konsentrasi/${selectedId}`, {
+                onSuccess: () => setShowModal(false)
+            });
+        } else {
+            post('/admin/konsentrasi', {
+                onSuccess: () => setShowModal(false)
+            });
+        }
     };
+
     const handleDelete = (id: string) => {
         if (confirm('Yakin ingin menghapus konsentrasi ini?')) router.delete(`/admin/konsentrasi/${id}`);
     };
 
     const filtered = konsentrasi.filter(k =>
-        k.nama.toLowerCase().includes(search.toLowerCase()) ||
-        k.kode.toLowerCase().includes(search.toLowerCase())
+        (k.nama?.toLowerCase() || '').includes(search.toLowerCase()) ||
+        (k.kode?.toLowerCase() || '').includes(search.toLowerCase())
     );
 
     return (
@@ -280,9 +304,9 @@ export default function KonsentrasiIndex({ konsentrasi }: Props) {
                                     <p style={s.cardName}>{k.nama}</p>
                                     {k.deskripsi && <p style={s.cardDesc}>{k.deskripsi}</p>}
                                     <div style={s.cardFooter}>
-                                        <span style={s.statusBadge(k.status === 'aktif')}>
-                                            <span style={s.statusDot(k.status === 'aktif')} />
-                                            {k.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
+                                        <span style={s.statusBadge(k.is_active)}>
+                                            <span style={s.statusDot(k.is_active)} />
+                                            {k.is_active ? 'Aktif' : 'Nonaktif'}
                                         </span>
                                         <div style={s.actionRow}>
                                             <button style={s.actionBtn('orange')} onClick={() => openEdit(k)} title="Edit">
@@ -317,42 +341,49 @@ export default function KonsentrasiIndex({ konsentrasi }: Props) {
                                 <div style={s.modalBody}>
                                     <label style={s.label}>Nama Konsentrasi</label>
                                     <input
-                                        style={s.formInput} value={form.nama} required
+                                        style={s.formInput} value={data.nama} required
                                         placeholder="Contoh: Machine Learning"
-                                        onChange={e => setForm({ ...form, nama: e.target.value })}
+                                        onChange={e => setData('nama', e.target.value)}
                                         onFocus={e => (e.target.style.borderColor = B.orangeBorder)}
                                         onBlur={e => (e.target.style.borderColor = B.border)}
                                     />
+                                    {errors?.nama && <p style={{color: 'red', fontSize: 12, marginTop: -8, marginBottom: 8}}>{errors.nama}</p>}
+
                                     <label style={s.label}>Kode</label>
                                     <input
-                                        style={s.formInput} value={form.kode} required
+                                        style={s.formInput} value={data.kode} required
                                         placeholder="Contoh: ML"
-                                        onChange={e => setForm({ ...form, kode: e.target.value })}
+                                        onChange={e => setData('kode', e.target.value)}
                                         onFocus={e => (e.target.style.borderColor = B.orangeBorder)}
                                         onBlur={e => (e.target.style.borderColor = B.border)}
                                     />
+                                    {errors?.kode && <p style={{color: 'red', fontSize: 12, marginTop: -8, marginBottom: 8}}>{errors.kode}</p>}
+
                                     <label style={s.label}>Deskripsi</label>
                                     <textarea
-                                        value={form.deskripsi} rows={3}
+                                        value={data.deskripsi} rows={3}
                                         placeholder="Deskripsi singkat..."
-                                        onChange={e => setForm({ ...form, deskripsi: e.target.value })}
+                                        onChange={e => setData('deskripsi', e.target.value)}
                                         style={{ ...s.formInput, resize: 'none', lineHeight: 1.5 }}
                                         onFocus={e => (e.target.style.borderColor = B.orangeBorder)}
                                         onBlur={e => (e.target.style.borderColor = B.border)}
                                     />
+                                    {errors?.deskripsi && <p style={{color: 'red', fontSize: 12, marginTop: -8, marginBottom: 8}}>{errors.deskripsi}</p>}
+
                                     <label style={s.label}>Status</label>
                                     <select
-                                        style={s.formSelect} value={form.status}
-                                        onChange={e => setForm({ ...form, status: e.target.value })}
+                                        style={s.formSelect} value={data.is_active ? 'aktif' : 'nonaktif'}
+                                        onChange={e => setData('is_active', e.target.value === 'aktif')}
                                     >
                                         <option value="aktif">Aktif</option>
                                         <option value="nonaktif">Nonaktif</option>
                                     </select>
+                                    {errors?.is_active && <p style={{color: 'red', fontSize: 12, marginTop: -8, marginBottom: 8}}>{errors.is_active}</p>}
                                 </div>
                                 <div style={s.modalFooter}>
-                                    <button type="button" style={s.btnCancel} onClick={() => setShowModal(false)}>Batal</button>
-                                    <button type="submit" style={s.btnSave}>
-                                        {editMode ? 'Update' : 'Simpan'}
+                                    <button type="button" style={s.btnCancel} onClick={() => setShowModal(false)} disabled={processing}>Batal</button>
+                                    <button type="submit" style={{ ...s.btnSave, opacity: processing ? 0.7 : 1 }} disabled={processing}>
+                                        {processing ? 'Memproses...' : (editMode ? 'Update' : 'Simpan')}
                                     </button>
                                 </div>
                             </form>
