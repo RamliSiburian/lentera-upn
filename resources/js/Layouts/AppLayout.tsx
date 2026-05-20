@@ -126,7 +126,7 @@ const icons = {
 // Surface:   #F5F3EE  (page background warm off-white)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getSidebarMenu(role: string, isKaprodi?: boolean): NavItem[] {
+function getSidebarMenu(role: string, isKaprodi?: boolean, originalRole?: string): NavItem[] {
   const adminMenu: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: icons.dashboard, name: 'dashboard' },
     { label: 'Data Mahasiswa', href: '/admin/mahasiswa', icon: icons.mahasiswa, name: 'admin.mahasiswa' },
@@ -181,17 +181,23 @@ function getSidebarMenu(role: string, isKaprodi?: boolean): NavItem[] {
     pimpinan: pimpinanMenu,
   };
 
-  if (role === 'dosen' && isKaprodi) {
-    // Kaprodi who is also dosen gets both menus combined
+  let menu = map[role] || adminMenu;
+
+  if (role === 'pimpinan' && isKaprodi) {
+    const kMenu = kaprodiMenu.filter(m => m.name !== 'dashboard');
+    menu = [...menu, ...kMenu];
+  }
+
+  if ((role === 'pimpinan' || role === 'k.prodi') && originalRole === 'dosen') {
     const dosenItems: NavItem[] = [
       { label: 'Mahasiswa Bimbingan', href: '/dosen/bimbingan', icon: icons.bimbingan, name: 'dosen.bimbingan' },
       { label: 'Jadwal Ujian', href: '/dosen/ujian', icon: icons.jadwal, name: 'dosen.ujian' },
       { label: 'Penilaian', href: '/dosen/penilaian', icon: icons.penilaian, name: 'dosen.penilaian' },
     ];
-    return [...kaprodiMenu, ...dosenItems];
+    menu = [...menu, ...dosenItems];
   }
 
-  return map[role] || adminMenu;
+  return menu;
 }
 
 // Role label mapping
@@ -211,7 +217,7 @@ export default function AppLayout({ children, title }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const menus = getSidebarMenu(role, isKaprodi);
+  const menus = getSidebarMenu(role, isKaprodi, user?.original_role);
   const currentPath = window.location.pathname;
 
   const handleLogout = () => {

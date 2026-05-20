@@ -30,6 +30,7 @@ class BimbinganAcc extends Model
         'pembimbing_id',
         'status',
         'catatan',
+        'file_revisi',
         'reviewed_at',
     ];
 

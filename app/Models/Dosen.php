@@ -24,6 +24,7 @@ class Dosen extends Model
         'bidang_keahlian',
         'kuota_bimbingan',
         'is_kaprodi',
+        'is_pimpinan',
         'foto_profil_path',
         'paraf_path',
         'no_hp',
@@ -31,6 +32,7 @@ class Dosen extends Model
 
     protected $casts = [
         'is_kaprodi' => 'boolean',
+        'is_pimpinan' => 'boolean',
         'kuota_bimbingan' => 'integer',
     ];
 
@@ -63,6 +65,11 @@ class Dosen extends Model
     public function isKaprodi(): bool
     {
         return $this->is_kaprodi;
+    }
+
+    public function isPimpinan(): bool
+    {
+        return $this->is_pimpinan;
     }
 
     public function getCurrentLoad(): int

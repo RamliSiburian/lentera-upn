@@ -5,7 +5,9 @@ import { StatCard } from '@/Components/UI';
 
 interface Stats {
     total_mahasiswa?: number; total_dosen?: number; total_judul_pending?: number; total_bimbingan_aktif?: number;
-    total_bimbingan?: number; total_mahasiswa_bimbingan?: number;
+    total_lulus?: number; total_bimbingan?: number; lulus_percentage?: number; bimbingan_percentage?: number;
+    top_tahapan?: { nama: string; total: number }[];
+    total_mahasiswa_bimbingan?: number;
     status_bimbingan?: string; judul_disetujui?: boolean;
 }
 interface AuthUser { name: string; role: string; }
@@ -29,10 +31,69 @@ export default function Dashboard({ stats }: Props) {
         <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
                 <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>} label="Total Mahasiswa" value={stats?.total_mahasiswa ?? 0} color="from-blue-500 to-indigo-600" />
-                <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} label="Total Dosen" value={stats?.total_dosen ?? 0} color="from-emerald-500 to-teal-600" />
-                <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} label="Judul Pending" value={stats?.total_judul_pending ?? 0} color="from-amber-500 to-orange-600" />
-                <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>} label="Bimbingan Aktif" value={stats?.total_bimbingan_aktif ?? 0} color="from-violet-500 to-purple-600" />
+                <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>} label="Lulus" value={stats?.total_lulus ?? 0} color="from-emerald-500 to-teal-600" />
+                <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>} label="Sedang Bimbingan" value={stats?.total_bimbingan ?? 0} color="from-amber-500 to-orange-600" />
+                <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} label="Total Dosen" value={stats?.total_dosen ?? 0} color="from-violet-500 to-purple-600" />
             </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+                {/* Chart 1: Komposisi Mahasiswa */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100/80 p-6">
+                    <h3 className="text-sm font-semibold text-gray-800 mb-5 flex items-center gap-2">
+                        <div className="w-1.5 h-5 rounded-full bg-blue-500" />Statistik Kelulusan & Bimbingan
+                    </h3>
+                    <div className="space-y-5">
+                        <div>
+                            <div className="flex justify-between text-sm mb-1.5">
+                                <span className="font-medium text-gray-600">Lulus</span>
+                                <span className="font-bold text-gray-800">{stats?.lulus_percentage}%</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                <div className="bg-emerald-500 h-3 rounded-full transition-all duration-1000" style={{ width: `${stats?.lulus_percentage}%` }}></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-sm mb-1.5">
+                                <span className="font-medium text-gray-600">Sedang Bimbingan</span>
+                                <span className="font-bold text-gray-800">{stats?.bimbingan_percentage}%</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                <div className="bg-amber-500 h-3 rounded-full transition-all duration-1000" style={{ width: `${stats?.bimbingan_percentage}%` }}></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Chart 2: Top Tahapan */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100/80 p-6">
+                    <h3 className="text-sm font-semibold text-gray-800 mb-5 flex items-center gap-2">
+                        <div className="w-1.5 h-5 rounded-full bg-violet-500" />Top 3 Tahapan Bimbingan
+                    </h3>
+                    <div className="space-y-4">
+                        {!stats?.top_tahapan || stats.top_tahapan.length === 0 ? (
+                            <p className="text-sm text-gray-400 text-center py-4">Belum ada data tahapan</p>
+                        ) : (
+                            stats.top_tahapan.map((t, idx) => {
+                                const max = stats.top_tahapan?.[0]?.total || 1;
+                                const pct = (t.total / max) * 100;
+                                const colors = ['bg-violet-500', 'bg-purple-500', 'bg-fuchsia-500'];
+                                return (
+                                    <div key={idx} className="relative">
+                                        <div className="flex justify-between text-xs mb-1">
+                                            <span className="font-semibold text-gray-700">{t.nama}</span>
+                                            <span className="text-gray-500">{t.total} Mhs</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-md h-2 overflow-hidden">
+                                            <div className={`${colors[idx % 3]} h-2 rounded-md transition-all duration-1000`} style={{ width: `${pct}%` }}></div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
+
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100/80 p-6">
                 <h3 className="text-sm font-semibold text-gray-800 mb-5 flex items-center gap-2">
                     <div className="w-1.5 h-5 rounded-full bg-indigo-500" />Menu Cepat

@@ -4,7 +4,8 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Modal, SearchInput, Button, Input, Select, PageHeader, FlashMessage, Badge, Avatar, EmptyState, Card, Tabs, StatCard } from '@/Components/UI';
 
 interface User { name: string; }
-interface Mahasiswa { id: string; nim: string; user: User; }
+interface Pembimbing { id: string; dosen_id: string; status: string; }
+interface Mahasiswa { id: string; nim: string; user: User; pembimbing?: Pembimbing[]; }
 interface Tahapan { id: string; nama_tahapan: string; }
 interface DosenData { id: string; nama: string; nidn: string; user: User; }
 interface Penguji { id: string; urutan: number; dosen: DosenData; }
@@ -33,7 +34,15 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
 
     const openPengujiModal = (u: PengajuanUjian) => {
         setSelectedUjian(u.id);
-        setSelectedDosen(u.penguji?.map(p => p.dosen?.id) || []);
+        let selected = u.penguji?.map(p => p.dosen?.id) || [];
+        if (selected.length === 0) {
+            // Find most recent previous exam for this student that has examiners
+            const prevUjian = pengajuanUjian.find(p => p.mahasiswa.id === u.mahasiswa.id && p.id !== u.id && p.penguji?.length > 0);
+            if (prevUjian) {
+                selected = prevUjian.penguji.map(p => p.dosen?.id) || [];
+            }
+        }
+        setSelectedDosen(selected);
         setPengujiModal(true);
     };
     const openJadwalModal = (u: PengajuanUjian) => {
@@ -163,17 +172,23 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                 <div className="space-y-4">
                     <p className="text-sm text-gray-500">Pilih dosen yang akan bertugas sebagai penguji.</p>
                     <div className="max-h-64 overflow-y-auto space-y-2">
-                        {dosenList.map(d => (
-                            <label key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedDosen.includes(d.id) ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
-                                <input type="checkbox" checked={selectedDosen.includes(d.id)} onChange={() => toggleDosen(d.id)} className="sr-only" />
-                                <Avatar name={d.user?.name || d.nama} size="sm" />
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-800">{d.user?.name || d.nama}</p>
-                                    <p className="text-xs text-gray-400">{d.nidn}</p>
-                                </div>
-                                {selectedDosen.includes(d.id) && <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                            </label>
-                        ))}
+                        {(() => {
+                            const selectedUjianData = pengajuanUjian.find(u => u.id === selectedUjian);
+                            const pembimbingIds = selectedUjianData?.mahasiswa?.pembimbing?.filter(p => p.status === 'approved').map(p => p.dosen_id) || [];
+                            const availableDosenList = dosenList.filter(d => !pembimbingIds.includes(d.id));
+                            
+                            return availableDosenList.map(d => (
+                                <label key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedDosen.includes(d.id) ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
+                                    <input type="checkbox" checked={selectedDosen.includes(d.id)} onChange={() => toggleDosen(d.id)} className="sr-only" />
+                                    <Avatar name={d.user?.name || d.nama} size="sm" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-800">{d.user?.name || d.nama}</p>
+                                        <p className="text-xs text-gray-400">{d.nidn}</p>
+                                    </div>
+                                    {selectedDosen.includes(d.id) && <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                </label>
+                            ));
+                        })()}
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                         <Button variant="secondary" onClick={() => setPengujiModal(false)}>Batal</Button>

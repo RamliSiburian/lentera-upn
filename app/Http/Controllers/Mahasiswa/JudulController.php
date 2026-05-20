@@ -95,7 +95,7 @@ class JudulController extends Controller
         return redirect()->route('mahasiswa.judul')->with('success', 'Judul berhasil diupdate.');
     }
 
-    public function submit($id)
+    public function submit($id, \App\Services\ApprovalService $approvalService)
     {
         $mahasiswa = $this->getMahasiswa();
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)->findOrFail($id);
@@ -104,8 +104,10 @@ class JudulController extends Controller
             return back()->with('error', 'Judul tidak bisa diajukan.');
         }
 
+        $firstStep = $approvalService->getFirstStep('judul_pengajuan') ?? 'submitted';
+
         $judul->update([
-            'status' => 'submitted',
+            'status' => $firstStep,
             'submitted_at' => now(),
         ]);
 
@@ -150,11 +152,11 @@ class JudulController extends Controller
         return response()->json($dosens);
     }
 
-    public function requestPembimbing(Request $request, $id)
+    public function requestPembimbing(Request $request, $id, \App\Services\ApprovalService $approvalService)
     {
         $mahasiswa = $this->getMahasiswa();
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)
-            ->where('status', 'approved_kaprodi')
+            ->where('status', 'approved') // changed from approved_kaprodi to approved because now it's fully approved
             ->findOrFail($id);
 
         $validated = $request->validate([
@@ -165,12 +167,14 @@ class JudulController extends Controller
         // Delete existing pembimbing requests
         Pembimbing::where('mahasiswa_id', $mahasiswa->id)->delete();
 
+        $firstStep = $approvalService->getFirstStep('pembimbing') ?? 'requested';
+
         // Create pembimbing utama
         Pembimbing::create([
             'mahasiswa_id' => $mahasiswa->id,
             'dosen_id' => $validated['dosen_id_1'],
             'urutan' => 'pembimbing_utama',
-            'status' => 'requested',
+            'status' => $firstStep,
             'requested_at' => now(),
         ]);
 
@@ -180,7 +184,7 @@ class JudulController extends Controller
                 'mahasiswa_id' => $mahasiswa->id,
                 'dosen_id' => $validated['dosen_id_2'],
                 'urutan' => 'pembimbing_pendamping',
-                'status' => 'requested',
+                'status' => $firstStep,
                 'requested_at' => now(),
             ]);
         }

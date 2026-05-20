@@ -74,7 +74,7 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === 'admin' || $this->isPimpinan();
     }
 
     public function isMahasiswa(): bool
@@ -89,7 +89,7 @@ class User extends Authenticatable
 
     public function isPimpinan(): bool
     {
-        return $this->role === 'pimpinan';
+        return ($this->role === 'pimpinan') || ($this->dosen && $this->dosen->isPimpinan());
     }
 
     public function isKaprodi(): bool
@@ -99,6 +99,9 @@ class User extends Authenticatable
 
     public function getRoleName(): string
     {
+        if ($this->isPimpinan()) {
+            return 'Pimpinan';
+        }
         if ($this->isKaprodi()) {
             return 'Kepala Program Studi';
         }
@@ -109,5 +112,13 @@ class User extends Authenticatable
             'mahasiswa' => 'Mahasiswa',
             default => 'User'
         };
+    }
+
+    public function getEffectiveRoleAttribute(): string
+    {
+        if ($this->role === 'admin') return 'admin';
+        if ($this->isPimpinan()) return 'pimpinan';
+        if ($this->isKaprodi()) return 'k.prodi';
+        return $this->role;
     }
 }

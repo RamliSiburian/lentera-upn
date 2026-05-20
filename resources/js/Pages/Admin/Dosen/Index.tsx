@@ -8,7 +8,7 @@ interface Konsentrasi { id: string; nama: string; }
 interface Dosen {
   id: string; nidn: string; bidang_keahlian: string; kuota_bimbingan: number;
   current_load: number; available_slots: number; foto: string | null; paraf: string | null;
-  is_kaprodi: boolean; status: string; user: User; konsentrasi: Konsentrasi[];
+  is_kaprodi: boolean; is_pimpinan: boolean; status: string; user: User; konsentrasi: Konsentrasi[];
 }
 interface Props { dosen?: Dosen[]; konsentrasiList?: Konsentrasi[]; }
 
@@ -248,9 +248,23 @@ const S = `
     }
     .kaprodi-badge svg { width: 10px; height: 10px; }
 
-    /* kaprodi toggle */
+    /* pimpinan badge */
+    .pimpinan-badge {
+        display: inline-flex; align-items: center; gap: 0.25rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 999px; font-size: 0.625rem; font-weight: 800;
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+        color: white; letter-spacing: 0.04em; text-transform: uppercase;
+        margin-left: 0.375rem; vertical-align: middle;
+    }
+    .pimpinan-badge svg { width: 10px; height: 10px; }
+
+    /* toggles */
     .act-icon-kaprodi:hover { background: rgba(124,58,237,0.1); color: #7c3aed; border-color: rgba(124,58,237,0.3); }
     .act-icon-kaprodi.is-kaprodi { background: rgba(124,58,237,0.1); color: #7c3aed; border-color: rgba(124,58,237,0.3); }
+
+    .act-icon-pimpinan:hover { background: rgba(2,132,199,0.1); color: #0284c7; border-color: rgba(2,132,199,0.3); }
+    .act-icon-pimpinan.is-pimpinan { background: rgba(2,132,199,0.1); color: #0284c7; border-color: rgba(2,132,199,0.3); }
 
     /* action buttons */
     .act-wrap { display: flex; align-items: center; gap: 0.25rem; }
@@ -565,6 +579,12 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                                                                 KAPRODI
                                                             </span>
                                                         )}
+                                                        {d.is_pimpinan && (
+                                                            <span className="pimpinan-badge">
+                                                                <svg fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                                                PIMPINAN
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="dosen-email">{d.user?.email || '-'}</div>
                                                 </div>
@@ -615,6 +635,13 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                                                     title={d.is_kaprodi ? 'Cabut Status Kaprodi' : 'Jadikan Kaprodi'}
                                                 >
                                                     <svg fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                                                </button>
+                                                <button
+                                                    className={`act-icon act-icon-pimpinan${d.is_pimpinan ? ' is-pimpinan' : ''}`}
+                                                    onClick={() => router.post(`/admin/dosen/${d.id}/toggle-pimpinan`)}
+                                                    title={d.is_pimpinan ? 'Cabut Status Pimpinan' : 'Jadikan Pimpinan'}
+                                                >
+                                                    <svg fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                                 </button>
                                                 <button className="act-icon act-icon-edit" onClick={() => openEdit(d)} title="Edit">
                                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>

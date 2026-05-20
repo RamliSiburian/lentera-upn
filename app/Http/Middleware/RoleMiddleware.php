@@ -25,8 +25,16 @@ class RoleMiddleware
             if ($user->role === $role) {
                 return $next($request);
             }
+            // Special case: admin access includes pimpinan
+            if ($role === 'admin' && $user->isAdmin()) {
+                return $next($request);
+            }
+            // Special case: pimpinan access via is_pimpinan flag on dosen
+            if ($role === 'pimpinan' && $user->isPimpinan()) {
+                return $next($request);
+            }
             // Special case: k.prodi access via is_kaprodi flag on dosen
-            if ($role === 'k.prodi' && $user->role === 'dosen' && $user->dosen && $user->dosen->is_kaprodi) {
+            if ($role === 'k.prodi' && $user->isKaprodi()) {
                 return $next($request);
             }
         }

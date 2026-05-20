@@ -62,6 +62,7 @@ class BimbinganController extends Controller
                                     'status' => $a->status,
                                     'catatan' => $a->catatan,
                                     'pembimbing_id' => $a->pembimbing_id,
+                                    'file_revisi' => $a->file_revisi ? asset('storage/' . $a->file_revisi) : null,
                                     'pembimbing' => $a->pembimbing ? [
                                         'urutan' => $a->pembimbing->urutan === 'pembimbing_utama' ? 1 : 2,
                                         'dosen' => ['nama' => $a->pembimbing->dosen?->user?->name ?? '-'],
@@ -172,6 +173,11 @@ class BimbinganController extends Controller
         $dosen = $this->getDosen();
         $bimbingan = Bimbingan::findOrFail($id);
 
+        $request->validate([
+            'catatan' => 'required|string',
+            'file_revisi' => 'nullable|file|mimes:pdf|max:10240',
+        ]);
+
         // Find the correct pembimbing for this dosen AND this bimbingan's mahasiswa
         $pembimbing = Pembimbing::where('dosen_id', $dosen->id)
             ->where('mahasiswa_id', $bimbingan->mahasiswa_id)
@@ -181,13 +187,18 @@ class BimbinganController extends Controller
             ->where('pembimbing_id', $pembimbing->id)
             ->firstOrFail();
 
-        $acc->update([
+        $updateData = [
             'status' => 'rejected',
             'catatan' => $request->input('catatan'),
             'reviewed_at' => now(),
-        ]);
+        ];
 
-        $bimbingan = Bimbingan::findOrFail($id);
+        if ($request->hasFile('file_revisi')) {
+            $updateData['file_revisi'] = $request->file('file_revisi')->store('bimbingan_revisi/' . $bimbingan->mahasiswa_id, 'public');
+        }
+
+        $acc->update($updateData);
+
         $bimbingan->update(['status' => 'rejected']);
 
         return redirect()->route('dosen.bimbingan')->with('success', 'Revisi diminta.');

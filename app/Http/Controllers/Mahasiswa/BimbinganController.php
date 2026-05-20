@@ -51,6 +51,7 @@ class BimbinganController extends Controller
                             'id' => $a->id,
                             'status' => $a->status,
                             'catatan' => $a->catatan,
+                            'file_revisi' => $a->file_revisi ? asset('storage/' . $a->file_revisi) : null,
                             'pembimbing' => $a->pembimbing ? [
                                 'urutan' => $a->pembimbing->urutan === 'pembimbing_utama' ? 1 : 2,
                                 'dosen' => ['nama' => $a->pembimbing->dosen?->user?->name ?? '-'],

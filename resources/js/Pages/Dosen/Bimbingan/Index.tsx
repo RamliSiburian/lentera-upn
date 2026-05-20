@@ -6,7 +6,7 @@ import { Modal, Button, SearchInput, PageHeader, FlashMessage, Badge, Avatar, Em
 interface TahapanConfig { id: string; nama: string; urutan: number; }
 interface BimbinganFile { id: string; nama_file: string; path_file: string; }
 interface ApprovalPembimbing { urutan: number; dosen: { nama: string }; }
-interface Approval { id: string; status: string; catatan: string | null; pembimbing_id: string; pembimbing: ApprovalPembimbing; approved_at: string | null; }
+interface Approval { id: string; status: string; catatan: string | null; file_revisi: string | null; pembimbing_id: string; pembimbing: ApprovalPembimbing; approved_at: string | null; }
 interface Komentar { id: string; komentar: string; created_at: string; user: { name: string; role: string }; }
 interface Bimbingan { id: string; tipe: string; status: string; catatan_mhs: string | null; versi: number; created_at: string; tahapan_config: TahapanConfig; files: BimbinganFile[]; approvals: Approval[]; komentar: Komentar[]; }
 interface MahasiswaData { id: string; nim: string; nama: string; user: { name: string }; }
@@ -22,12 +22,14 @@ export default function Index({ pembimbings, dosen }: Props) {
     const [activeBimbingan, setActiveBimbingan] = useState<string | null>(null);
     const [komentarText, setKomentarText] = useState<Record<string, string>>({});
     const [catatanForm, setCatatanForm] = useState<Record<string, string>>({});
+    const [fileForm, setFileForm] = useState<Record<string, File | null>>({});
     const [rejectModal, setRejectModal] = useState<{ type: 'pembimbing' | 'bimbingan', id: string } | null>(null);
     const [rejectCatatan, setRejectCatatan] = useState('');
+    const [rejectFile, setRejectFile] = useState<File | null>(null);
 
     const handleApprove = (bimbinganId: string) => { router.post(route('dosen.bimbingan.approve', bimbinganId), { catatan: catatanForm[bimbinganId] || '' }); };
-    const handleRevisi = (bimbinganId: string) => { router.post(route('dosen.bimbingan.revisi', bimbinganId), { catatan: catatanForm[bimbinganId] || '' }); };
-    const handleReject = (bimbinganId: string) => { router.post(route('dosen.bimbingan.reject', bimbinganId), { catatan: rejectCatatan }); setRejectModal(null); setRejectCatatan(''); };
+    const handleRevisi = (bimbinganId: string) => { router.post(route('dosen.bimbingan.revisi', bimbinganId), { catatan: catatanForm[bimbinganId] || '', file_revisi: fileForm[bimbinganId] || null }, { forceFormData: true }); };
+    const handleReject = (bimbinganId: string) => { router.post(route('dosen.bimbingan.reject', bimbinganId), { catatan: rejectCatatan, file_revisi: rejectFile || null }, { forceFormData: true }); setRejectModal(null); setRejectCatatan(''); setRejectFile(null); };
     const handleAddKomentar = (bimbinganId: string) => { const k = komentarText[bimbinganId]; if (!k) return; router.post(route('dosen.bimbingan.komentar', bimbinganId), { komentar: k }, { onSuccess: () => setKomentarText(prev => ({ ...prev, [bimbinganId]: '' })) }); };
     const handleAcceptPembimbing = (pembimbingId: string) => { router.post(route('dosen.pembimbing.approve', pembimbingId)); };
     const handleRejectPembimbing = () => { if (!rejectModal) return; router.post(route('dosen.pembimbing.reject', rejectModal.id), { catatan: rejectCatatan }); setRejectModal(null); setRejectCatatan(''); };
@@ -133,6 +135,12 @@ export default function Index({ pembimbings, dosen }: Props) {
                                                                         <div className="flex items-center gap-2">
                                                                             <Badge color={approvalBadgeColor(a.status)}>{approvalStatusLabel(a.status)}</Badge>
                                                                             {a.catatan && <span className="text-xs text-gray-400 max-w-[150px] truncate">"{a.catatan}"</span>}
+                                                                            {a.file_revisi && (
+                                                                                <a href={a.file_revisi} target="_blank" className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-medium hover:bg-red-100 transition-colors">
+                                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                                                                    File Revisi
+                                                                                </a>
+                                                                            )}
                                                                         </div>
                                                                     </div>
                                                                 ))}
@@ -146,9 +154,13 @@ export default function Index({ pembimbings, dosen }: Props) {
                                                         })() && (
                                                             <div className="mt-3 p-3 bg-white rounded-xl border border-gray-100">
                                                                 <input value={catatanForm[b.id] || ''} onChange={e => setCatatanForm(prev => ({ ...prev, [b.id]: e.target.value }))} placeholder="Catatan (opsional untuk ACC, wajib untuk revisi)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:bg-white outline-none transition-all mb-2" />
+                                                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                                    <label className="text-xs font-medium text-gray-500">File Revisi (opsional untuk ACC, wajib untuk Revisi):</label>
+                                                                    <input type="file" accept=".pdf" onChange={e => setFileForm(prev => ({ ...prev, [b.id]: e.target.files?.[0] || null }))} className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                                                                </div>
                                                                 <div className="flex gap-2">
                                                                     <Button size="sm" variant="success" onClick={() => handleApprove(b.id)} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}>ACC</Button>
-                                                                    <Button size="sm" variant="primary" onClick={() => handleRevisi(b.id)} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>Revisi</Button>
+                                                                    <Button size="sm" variant="primary" onClick={() => handleRevisi(b.id)} disabled={!fileForm[b.id]} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>Revisi</Button>
                                                                     <Button size="sm" variant="danger" onClick={() => setRejectModal({ type: 'bimbingan', id: b.id })} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}>Tolak</Button>
                                                                 </div>
                                                             </div>
@@ -194,9 +206,16 @@ export default function Index({ pembimbings, dosen }: Props) {
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Catatan</label>
                         <textarea value={rejectCatatan} onChange={e => setRejectCatatan(e.target.value)} rows={3} placeholder="Alasan penolakan..." className="w-full border rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:bg-white transition-all duration-200 outline-none resize-none" required />
                     </div>
+                    {rejectModal?.type === 'bimbingan' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">File Revisi (Wajib)</label>
+                            <input type="file" accept=".pdf" onChange={e => setRejectFile(e.target.files?.[0] || null)} required className="w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                            <p className="mt-1 text-xs text-gray-500">Maksimal ukuran file 10MB (PDF).</p>
+                        </div>
+                    )}
                     <div className="flex justify-end gap-3 pt-2">
-                        <Button variant="secondary" onClick={() => { setRejectModal(null); setRejectCatatan(''); }}>Batal</Button>
-                        <Button variant="danger" onClick={() => rejectModal?.type === 'pembimbing' ? handleRejectPembimbing() : handleReject(rejectModal.id)}>Tolak</Button>
+                        <Button variant="secondary" onClick={() => { setRejectModal(null); setRejectCatatan(''); setRejectFile(null); }}>Batal</Button>
+                        <Button variant="danger" onClick={() => rejectModal?.type === 'pembimbing' ? handleRejectPembimbing() : handleReject(rejectModal.id)} disabled={rejectModal?.type === 'bimbingan' && !rejectFile}>Tolak</Button>
                     </div>
                 </div>
             </Modal>

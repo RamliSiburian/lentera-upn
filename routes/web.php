@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('mahasiswa', MahasiswaController::class)->except(['create', 'show', 'edit']);
         Route::resource('dosen', DosenController::class)->except(['create', 'show', 'edit']);
         Route::post('/dosen/{id}/toggle-kaprodi', [DosenController::class, 'toggleKaprodi'])->name('dosen.toggle-kaprodi');
+        Route::post('/dosen/{id}/toggle-pimpinan', [DosenController::class, 'togglePimpinan'])->name('dosen.toggle-pimpinan');
         Route::resource('konsentrasi', KonsentrasiController::class)->except(['create', 'show', 'edit']);
         Route::resource('ruangan', RuanganController::class)->except(['create', 'show', 'edit']);
         Route::resource('tahapan', TahapanController::class)->except(['create', 'show', 'edit']);

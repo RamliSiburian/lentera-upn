@@ -24,6 +24,7 @@ class DosenController extends Controller
                 'foto' => $d->foto_profil_path,
                 'paraf' => $d->paraf_path,
                 'is_kaprodi' => $d->is_kaprodi,
+                'is_pimpinan' => $d->is_pimpinan,
                 'status' => $d->user ? ($d->user->is_active ? 'aktif' : 'nonaktif') : 'nonaktif',
                 'user' => $d->user ? ['id' => $d->user->id, 'name' => $d->user->name, 'email' => $d->user->email] : null,
                 'konsentrasi' => $d->konsentrasi->map(fn($k) => ['id' => $k->id, 'nama' => $k->nama]),
@@ -128,6 +129,25 @@ class DosenController extends Controller
         $dosen->update(['is_kaprodi' => true]);
 
         return redirect()->back()->with('success', $dosen->user->name . ' berhasil ditetapkan sebagai Kaprodi');
+    }
+
+    public function togglePimpinan($id)
+    {
+        $dosen = Dosen::findOrFail($id);
+
+        if ($dosen->is_pimpinan) {
+            $dosen->update(['is_pimpinan' => false]);
+            return redirect()->back()->with('success', 'Status Pimpinan berhasil dicabut dari ' . $dosen->user->name);
+        }
+
+        $existingPimpinan = Dosen::where('is_pimpinan', true)->first();
+        if ($existingPimpinan) {
+            $existingPimpinan->update(['is_pimpinan' => false]);
+        }
+
+        $dosen->update(['is_pimpinan' => true]);
+
+        return redirect()->back()->with('success', $dosen->user->name . ' berhasil ditetapkan sebagai Pimpinan');
     }
 
     public function destroy($id)

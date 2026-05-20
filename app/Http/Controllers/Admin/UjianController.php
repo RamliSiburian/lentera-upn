@@ -18,6 +18,7 @@ class UjianController extends Controller
     {
         $pengajuanUjian = PengajuanUjian::with([
             'mahasiswa.user',
+            'mahasiswa.pembimbing',
             'tahapan',
             'penguji.dosen.user',
             'jadwal.ruangan',

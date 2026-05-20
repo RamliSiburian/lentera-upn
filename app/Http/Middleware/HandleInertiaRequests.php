@@ -32,7 +32,11 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? array_merge($request->user()->toArray(), [
+                    'role' => $request->user()->effective_role,
+                    'original_role' => $request->user()->role,
+                    'role_name' => $request->user()->getRoleName()
+                ]) : null,
                 'is_kaprodi' => $request->user() && $request->user()->isKaprodi(),
             ],
         ];

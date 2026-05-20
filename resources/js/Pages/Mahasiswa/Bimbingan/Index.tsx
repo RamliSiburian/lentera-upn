@@ -5,7 +5,7 @@ import { Modal, Button, Select, PageHeader, FlashMessage, Badge, EmptyState, Car
 
 interface TahapanConfig { id: string; nama: string; nama_tahapan: string; urutan: number; tipe: string; }
 interface BimbinganFile { id: string; nama_file: string; path_file: string; }
-interface Approval { id: string; status: string; catatan: string | null; pembimbing: { urutan: number; dosen: { nama: string } }; }
+interface Approval { id: string; status: string; catatan: string | null; file_revisi: string | null; pembimbing: { urutan: number; dosen: { nama: string } }; }
 interface Komentar { id: string; komentar: string; created_at: string; user: { name: string; role: string }; }
 interface Bimbingan { id: string; tipe: string; status: string; catatan_mhs: string | null; versi: number; created_at: string; tahapan_config: TahapanConfig; files: BimbinganFile[]; approvals: Approval[]; komentar: Komentar[]; }
 interface PembimbingData { id: string; urutan: number; dosen: { id: string; nama: string; nidn: string }; }
@@ -408,6 +408,21 @@ export default function Index({ bimbingans, judul, tahapanList, canCreateBimbing
                                                                             <span className="text-[11px] text-gray-400 max-w-[180px] truncate italic">
                                                                                 "{a.catatan}"
                                                                             </span>
+                                                                        )}
+                                                                        {a.file_revisi && (
+                                                                            <a
+                                                                                href={a.file_revisi}
+                                                                                target="_blank"
+                                                                                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors"
+                                                                                style={{ background: 'rgba(239,68,68,0.10)', color: '#b91c1c' }}
+                                                                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.15)')}
+                                                                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.10)')}
+                                                                            >
+                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                                </svg>
+                                                                                File Revisi
+                                                                            </a>
                                                                         )}
                                                                     </div>
                                                                 </div>
