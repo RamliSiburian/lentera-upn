@@ -133,6 +133,10 @@ class JudulController extends Controller
         $dosens = Dosen::whereHas('konsentrasi', function ($q) use ($konsentrasiId) {
                 $q->where('konsentrasi.id', $konsentrasiId);
             })
+            ->where(function ($q) {
+                $q->where('kategori', '!=', 'asisten ahli')
+                  ->orWhereNull('kategori');
+            })
             ->with('user')
             ->withCount(['pembimbing as active_bimbingan' => function ($q) {
                 $q->where('status', 'approved');
@@ -163,6 +167,18 @@ class JudulController extends Controller
             'dosen_id_1' => 'required|uuid|exists:dosen,id',
             'dosen_id_2' => 'nullable|uuid|exists:dosen,id|different:dosen_id_1',
         ]);
+
+        $dosen1 = Dosen::findOrFail($validated['dosen_id_1']);
+        if ($dosen1->kategori === 'asisten ahli') {
+            return back()->with('error', 'Dosen dengan kategori Asisten Ahli tidak dapat dipilih sebagai pembimbing.');
+        }
+
+        if (!empty($validated['dosen_id_2'])) {
+            $dosen2 = Dosen::findOrFail($validated['dosen_id_2']);
+            if ($dosen2->kategori === 'asisten ahli') {
+                return back()->with('error', 'Dosen dengan kategori Asisten Ahli tidak dapat dipilih sebagai pembimbing.');
+            }
+        }
 
         // Delete existing pembimbing requests
         Pembimbing::where('mahasiswa_id', $mahasiswa->id)->delete();

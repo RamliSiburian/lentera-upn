@@ -21,7 +21,7 @@ class ApprovalConfigSeeder extends Seeder
                 'label' => 'Approval Pengajuan Judul',
                 'steps' => [
                     [
-                        'step' => 'admin_verification',
+                        'step' => 'verified_admin',
                         'label' => 'Verifikasi Admin',
                         'role' => 'admin',
                         'required' => true,
@@ -39,7 +39,7 @@ class ApprovalConfigSeeder extends Seeder
                 'label' => 'Approval Pembimbing',
                 'steps' => [
                     [
-                        'step' => 'admin_verification',
+                        'step' => 'verified_admin',
                         'label' => 'Verifikasi Admin',
                         'role' => 'admin',
                         'required' => true,
@@ -75,7 +75,7 @@ class ApprovalConfigSeeder extends Seeder
                 'label' => 'Approval Ujian',
                 'steps' => [
                     [
-                        'step' => 'admin_verification',
+                        'step' => 'verified_admin',
                         'label' => 'Verifikasi Admin',
                         'role' => 'admin',
                         'required' => true,

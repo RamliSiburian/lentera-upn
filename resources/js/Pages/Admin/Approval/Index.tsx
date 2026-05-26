@@ -280,7 +280,7 @@ export default function ApprovalIndex({ configs }: Props) {
                                                     )}
                                                 </div>
                                                 <div style={{ marginBottom: '.5rem' }}>
-                                                    <input className="fi" style={{ marginBottom: '.375rem' }} value={s.step} onChange={e => updateStep(i, 'step', e.target.value)} placeholder="Step key (contoh: admin_verification)" required />
+                                                    <input className="fi" style={{ marginBottom: '.375rem' }} value={s.step} onChange={e => updateStep(i, 'step', e.target.value)} placeholder="Step key (contoh: verified_admin)" required />
                                                     <input className="fi" value={s.label} onChange={e => updateStep(i, 'label', e.target.value)} placeholder="Label (contoh: Verifikasi Admin)" required />
                                                 </div>
                                                 <div className="step-fg2">

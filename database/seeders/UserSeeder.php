@@ -42,6 +42,7 @@ class UserSeeder extends Seeder
             'bidang_keahlian' => 'Sistem Informasi',
             'kuota_bimbingan' => 10,
             'is_kaprodi' => true,
+            'kategori' => 'lektor kepala',
         ]);
 
         // Dosen Users
@@ -53,6 +54,7 @@ class UserSeeder extends Seeder
                 'bidang_keahlian' => 'Sistem Pakar',
                 'kuota_bimbingan' => 10,
                 'is_kaprodi' => false,
+                'kategori' => 'profesor',
             ],
             [
                 'name' => 'Dr. Siti Aminah',
@@ -61,6 +63,7 @@ class UserSeeder extends Seeder
                 'bidang_keahlian' => 'Machine Learning',
                 'kuota_bimbingan' => 10,
                 'is_kaprodi' => false,
+                'kategori' => 'lektor kepala',
             ],
             [
                 'name' => 'Dr. Budi Santoso',
@@ -69,6 +72,7 @@ class UserSeeder extends Seeder
                 'bidang_keahlian' => 'Jaringan Komputer',
                 'kuota_bimbingan' => 10,
                 'is_kaprodi' => false,
+                'kategori' => 'lektor',
             ],
             [
                 'name' => 'Dr. Rina Wijaya',
@@ -77,6 +81,7 @@ class UserSeeder extends Seeder
                 'bidang_keahlian' => 'Data Mining',
                 'kuota_bimbingan' => 10,
                 'is_kaprodi' => false,
+                'kategori' => 'asisten ahli',
             ],
         ];
 
@@ -96,6 +101,7 @@ class UserSeeder extends Seeder
                 'bidang_keahlian' => $dosenInfo['bidang_keahlian'],
                 'kuota_bimbingan' => $dosenInfo['kuota_bimbingan'],
                 'is_kaprodi' => $dosenInfo['is_kaprodi'],
+                'kategori' => $dosenInfo['kategori'],
             ]);
         }
 

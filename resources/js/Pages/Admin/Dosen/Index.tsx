@@ -9,6 +9,7 @@ interface Dosen {
   id: string; nidn: string; bidang_keahlian: string; kuota_bimbingan: number;
   current_load: number; available_slots: number; foto: string | null; paraf: string | null;
   is_kaprodi: boolean; is_pimpinan: boolean; status: string; user: User; konsentrasi: Konsentrasi[];
+  kategori: string | null;
 }
 interface Props { dosen?: Dosen[]; konsentrasiList?: Konsentrasi[]; }
 
@@ -259,6 +260,22 @@ const S = `
     }
     .pimpinan-badge svg { width: 10px; height: 10px; }
 
+    /* kategori badge */
+    .kategori-pill {
+        display: inline-flex; align-items: center;
+        padding: 0.25rem 0.625rem;
+        border-radius: 8px;
+        font-size: 0.75rem; font-weight: 700;
+        text-transform: capitalize;
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+    }
+    .kat-asisten { background: #e0f2fe; color: #0369a1; border: 1px solid rgba(3,105,161,0.15); }
+    .kat-lektor { background: #e0e7ff; color: #4338ca; border: 1px solid rgba(67,56,202,0.15); }
+    .kat-lektor-kepala { background: #f3e8ff; color: #7e22ce; border: 1px solid rgba(126,34,206,0.15); }
+    .kat-profesor { background: #fef3c7; color: #b45309; border: 1px solid rgba(180,83,9,0.15); }
+    .kat-default { background: #f3f4f6; color: #4b5563; border: 1px solid rgba(75,85,99,0.15); }
+
     /* toggles */
     .act-icon-kaprodi:hover { background: rgba(124,58,237,0.1); color: #7c3aed; border-color: rgba(124,58,237,0.3); }
     .act-icon-kaprodi.is-kaprodi { background: rgba(124,58,237,0.1); color: #7c3aed; border-color: rgba(124,58,237,0.3); }
@@ -405,19 +422,28 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
     const [search, setSearch] = useState('');
     const [form, setForm] = useState({
-        name: '', email: '', nidn: '', bidang_keahlian: '', kuota_bimbingan: 10,
+        name: '', email: '', nidn: '', bidang_keahlian: '', kategori: '', kuota_bimbingan: 10,
         password: '', konsentrasi_ids: [] as string[]
     });
 
     const openCreate = () => {
         setEditMode(false); setSelectedId(null);
-        setForm({ name: '', email: '', nidn: '', bidang_keahlian: '', kuota_bimbingan: 10, password: '', konsentrasi_ids: [] });
+        setForm({ name: '', email: '', nidn: '', bidang_keahlian: '', kategori: '', kuota_bimbingan: 10, password: '', konsentrasi_ids: [] });
         setShowModal(true);
     };
 
     const openEdit = (d: Dosen) => {
         setEditMode(true); setSelectedId(d.id);
-        setForm({ name: d.user?.name || '', email: d.user?.email || '', nidn: d.nidn, bidang_keahlian: d.bidang_keahlian || '', kuota_bimbingan: d.kuota_bimbingan, password: '', konsentrasi_ids: d.konsentrasi?.map(k => k.id) || [] });
+        setForm({
+            name: d.user?.name || '',
+            email: d.user?.email || '',
+            nidn: d.nidn,
+            bidang_keahlian: d.bidang_keahlian || '',
+            kategori: d.kategori || '',
+            kuota_bimbingan: d.kuota_bimbingan,
+            password: '',
+            konsentrasi_ids: d.konsentrasi?.map(k => k.id) || []
+        });
         setShowModal(true);
     };
 
@@ -544,6 +570,7 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                                 <tr>
                                     <th>Dosen</th>
                                     <th>NIDN</th>
+                                    <th>Kategori</th>
                                     <th>Bidang Keahlian</th>
                                     <th>Beban Bimbingan</th>
                                     <th>Konsentrasi</th>
@@ -554,7 +581,7 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                             <tbody>
                                 {filtered.length === 0 ? (
                                     <tr className="empty-row">
-                                        <td colSpan={7}>
+                                        <td colSpan={8}>
                                             <div className="empty-icon">
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                             </div>
@@ -593,6 +620,22 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
 
                                         {/* NIDN */}
                                         <td><span className="nidn-pill">{d.nidn}</span></td>
+
+                                        {/* Kategori */}
+                                        <td>
+                                            {d.kategori ? (
+                                                <span className={`kategori-pill ${
+                                                    d.kategori === 'asisten ahli' ? 'kat-asisten' :
+                                                    d.kategori === 'lektor' ? 'kat-lektor' :
+                                                    d.kategori === 'lektor kepala' ? 'kat-lektor-kepala' :
+                                                    d.kategori === 'profesor' ? 'kat-profesor' : 'kat-default'
+                                                }`}>
+                                                    {d.kategori}
+                                                </span>
+                                            ) : (
+                                                <span className="kategori-pill kat-default">—</span>
+                                            )}
+                                        </td>
 
                                         {/* Bidang */}
                                         <td style={{ fontSize: '0.8125rem', color: 'var(--text-2)' }}>{d.bidang_keahlian || '—'}</td>
@@ -727,9 +770,19 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                                             <input className="f-input" value={form.bidang_keahlian} onChange={e => setForm({ ...form, bidang_keahlian: e.target.value })} placeholder="Bidang keahlian" />
                                         </div>
                                         <div className="f-group">
-                                            <label className="f-label f-label-req">Kuota Bimbingan (Maks)</label>
-                                            <input className="f-input" type="number" value={form.kuota_bimbingan} onChange={e => setForm({ ...form, kuota_bimbingan: parseInt(e.target.value) || 0 })} required />
+                                            <label className="f-label">Kategori Dosen</label>
+                                            <select className="f-select" value={form.kategori} onChange={e => setForm({ ...form, kategori: e.target.value })}>
+                                                <option value="">-- Pilih Kategori --</option>
+                                                <option value="asisten ahli">Asisten Ahli</option>
+                                                <option value="lektor">Lektor</option>
+                                                <option value="lektor kepala">Lektor Kepala</option>
+                                                <option value="profesor">Profesor</option>
+                                            </select>
                                         </div>
+                                    </div>
+                                    <div className="f-group">
+                                        <label className="f-label f-label-req">Kuota Bimbingan (Maks)</label>
+                                        <input className="f-input" type="number" value={form.kuota_bimbingan} onChange={e => setForm({ ...form, kuota_bimbingan: parseInt(e.target.value) || 0 })} required />
                                     </div>
                                     {!editMode && (
                                         <div className="f-group">

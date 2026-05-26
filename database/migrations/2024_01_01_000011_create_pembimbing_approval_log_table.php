@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('pembimbing_id');
             $table->uuid('actor_id');
-            $table->enum('step', ['admin_verification', 'kaprodi_approval', 'dosen_approval']);
+            $table->enum('step', ['verified_admin', 'kaprodi_approval', 'dosen_approval']);
             $table->enum('action', ['approved', 'rejected']);
             $table->text('catatan')->nullable();
             $table->timestamps();

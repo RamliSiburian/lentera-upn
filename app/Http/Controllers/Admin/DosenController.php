@@ -18,6 +18,7 @@ class DosenController extends Controller
                 'id' => $d->id,
                 'nidn' => $d->nidn,
                 'bidang_keahlian' => $d->bidang_keahlian,
+                'kategori' => $d->kategori,
                 'kuota_bimbingan' => $d->kuota_bimbingan,
                 'current_load' => $d->getCurrentLoad(),
                 'available_slots' => $d->getAvailableSlots(),
@@ -45,6 +46,7 @@ class DosenController extends Controller
             'email' => 'required|email|unique:users,email',
             'nidn' => 'required|string|unique:dosen,nidn',
             'bidang_keahlian' => 'nullable|string|max:255',
+            'kategori' => 'nullable|string|in:asisten ahli,lektor,lektor kepala,profesor',
             'kuota_bimbingan' => 'required|integer|min:0|max:50',
             'no_hp' => 'nullable|string|max:20',
             'password' => 'required|string|min:6',
@@ -64,6 +66,7 @@ class DosenController extends Controller
             'user_id' => $user->id,
             'nidn' => $validated['nidn'],
             'bidang_keahlian' => $validated['bidang_keahlian'],
+            'kategori' => $validated['kategori'] ?? null,
             'kuota_bimbingan' => $validated['kuota_bimbingan'],
             'no_hp' => $validated['no_hp'] ?? null,
         ]);
@@ -84,6 +87,7 @@ class DosenController extends Controller
             'email' => 'required|email|unique:users,email,' . $dosen->user_id,
             'nidn' => 'required|string|unique:dosen,nidn,' . $id,
             'bidang_keahlian' => 'nullable|string|max:255',
+            'kategori' => 'nullable|string|in:asisten ahli,lektor,lektor kepala,profesor',
             'kuota_bimbingan' => 'required|integer|min:0|max:50',
             'no_hp' => 'nullable|string|max:20',
             'konsentrasi_ids' => 'nullable|array',
@@ -98,6 +102,7 @@ class DosenController extends Controller
         $dosen->update([
             'nidn' => $validated['nidn'],
             'bidang_keahlian' => $validated['bidang_keahlian'],
+            'kategori' => $validated['kategori'] ?? null,
             'kuota_bimbingan' => $validated['kuota_bimbingan'],
             'no_hp' => $validated['no_hp'] ?? null,
         ]);
@@ -138,11 +143,6 @@ class DosenController extends Controller
         if ($dosen->is_pimpinan) {
             $dosen->update(['is_pimpinan' => false]);
             return redirect()->back()->with('success', 'Status Pimpinan berhasil dicabut dari ' . $dosen->user->name);
-        }
-
-        $existingPimpinan = Dosen::where('is_pimpinan', true)->first();
-        if ($existingPimpinan) {
-            $existingPimpinan->update(['is_pimpinan' => false]);
         }
 
         $dosen->update(['is_pimpinan' => true]);

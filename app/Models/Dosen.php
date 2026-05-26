@@ -22,6 +22,7 @@ class Dosen extends Model
         'user_id',
         'nidn',
         'bidang_keahlian',
+        'kategori',
         'kuota_bimbingan',
         'is_kaprodi',
         'is_pimpinan',

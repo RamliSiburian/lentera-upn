@@ -28,6 +28,9 @@ class UjianController extends Controller
 
         $dosenList = Dosen::with('user')->whereHas('user', function ($q) {
             $q->where('is_active', true);
+        })->where(function ($q) {
+            $q->where('kategori', '!=', 'asisten ahli')
+              ->orWhereNull('kategori');
         })->get();
 
         $ruanganList = Ruangan::where('is_active', true)->get();
@@ -45,6 +48,13 @@ class UjianController extends Controller
             'dosen_ids' => 'required|array|min:1',
             'dosen_ids.*' => 'required|exists:dosen,id',
         ]);
+
+        foreach ($request->dosen_ids as $dosenId) {
+            $dosen = Dosen::findOrFail($dosenId);
+            if ($dosen->kategori === 'asisten ahli') {
+                return back()->with('error', 'Dosen dengan kategori Asisten Ahli tidak dapat ditugaskan sebagai penguji.');
+            }
+        }
 
         $pengajuan = PengajuanUjian::findOrFail($id);
         $user = Auth::user();
