@@ -73,6 +73,9 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
         rejected: juduls.filter(j => isRejected(j.status)).length,
     };
 
+    console.log({juduls});
+    
+
     return (
         <AppLayout title="Verifikasi Judul">
             <PageHeader 

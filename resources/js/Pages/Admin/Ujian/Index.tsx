@@ -15,6 +15,7 @@ interface Penilaian { id: string; nilai: number; status_hasil: string; catatan: 
 interface PengajuanUjian {
     id: string; status: string; keterangan: string | null; submitted_at: string;
     mahasiswa: Mahasiswa; tahapan: Tahapan; penguji: Penguji[]; jadwal: Jadwal | null; penilaian: Penilaian[];
+    prev_penguji?: Penguji[]; // penguji dari ujian sebelumnya (jika ada)
 }
 
 interface Props { pengajuanUjian: PengajuanUjian[]; dosenList: DosenData[]; ruanganList: Ruangan[]; [key: string]: any; }
@@ -32,17 +33,21 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
     const pengujiForm = useForm({ dosen_ids: [] as string[] });
     const jadwalForm = useForm({ ruangan_id: '', tanggal: '', jam_mulai: '', jam_selesai: '', catatan: '' });
 
+    const [prevPengujiInfo, setPrevPengujiInfo] = useState<Penguji[]>([]);
+
     const openPengujiModal = (u: PengajuanUjian) => {
         setSelectedUjian(u.id);
-        let selected = u.penguji?.map(p => p.dosen?.id) || [];
-        if (selected.length === 0) {
-            // Find most recent previous exam for this student that has examiners
-            const prevUjian = pengajuanUjian.find(p => p.mahasiswa.id === u.mahasiswa.id && p.id !== u.id && p.penguji?.length > 0);
-            if (prevUjian) {
-                selected = prevUjian.penguji.map(p => p.dosen?.id) || [];
-            }
+        let selected = u.penguji?.map(p => p.dosen?.id).filter(Boolean) as string[] || [];
+        let prevInfo: Penguji[] = [];
+
+        if (selected.length === 0 && u.prev_penguji && u.prev_penguji.length > 0) {
+            // Pre-select penguji dari ujian sebelumnya sebagai default
+            selected = u.prev_penguji.map(p => p.dosen?.id).filter(Boolean) as string[];
+            prevInfo = u.prev_penguji;
         }
+
         setSelectedDosen(selected);
+        setPrevPengujiInfo(prevInfo);
         setPengujiModal(true);
     };
     const openJadwalModal = (u: PengajuanUjian) => {
@@ -122,6 +127,18 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                                     <Badge color={statusColor(u.status)} dot>{statusLabel(u.status)}</Badge>
                                 </div>
 
+                                {/* Info: punya ujian sebelumnya tapi belum ada penguji sekarang */}
+                                {u.penguji?.length === 0 && u.prev_penguji && u.prev_penguji.length > 0 && (
+                                    <div className="mt-3 px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: 'rgba(99,102,241,0.07)', border: '1px dashed rgba(99,102,241,0.3)' }}>
+                                        <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#6366f1' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p className="text-xs" style={{ color: '#4f46e5' }}>
+                                            Pernah ujian sebelumnya — penguji lama akan dijadikan default
+                                        </p>
+                                    </div>
+                                )}
+
                                 {u.penguji?.length > 0 && (
                                     <div className="mt-4 pt-4 border-t border-gray-50">
                                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Penguji</p>
@@ -168,8 +185,28 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
             )}
 
             {/* Penguji Modal */}
-            <Modal show={pengujiModal} onClose={() => setPengujiModal(false)} title="Pilih Penguji" maxWidth="max-w-lg">
+            <Modal show={pengujiModal} onClose={() => { setPengujiModal(false); setPrevPengujiInfo([]); }} title="Pilih Penguji" maxWidth="max-w-lg">
                 <div className="space-y-4">
+                    {/* Banner: default dari ujian sebelumnya */}
+                    {prevPengujiInfo.length > 0 && (
+                        <div className="flex items-start gap-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.20)' }}>
+                            <svg className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#6366f1' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="flex-1">
+                                <p className="text-xs font-semibold mb-1" style={{ color: '#4f46e5' }}>Diisi otomatis dari ujian sebelumnya</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {prevPengujiInfo.map(p => (
+                                        <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'rgba(99,102,241,0.15)', color: '#4f46e5' }}>
+                                            {p.urutan}. {p.dosen?.user?.name}
+                                        </span>
+                                    ))}
+                                </div>
+                                <p className="text-[11px] mt-1.5" style={{ color: 'rgba(79,70,229,0.65)' }}>Anda dapat mengubah pilihan di bawah ini jika diperlukan.</p>
+                            </div>
+                        </div>
+                    )}
+
                     <p className="text-sm text-gray-500">Pilih dosen yang akan bertugas sebagai penguji.</p>
                     <div className="max-h-64 overflow-y-auto space-y-2">
                         {(() => {
@@ -191,7 +228,7 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                         })()}
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <Button variant="secondary" onClick={() => setPengujiModal(false)}>Batal</Button>
+                        <Button variant="secondary" onClick={() => { setPengujiModal(false); setPrevPengujiInfo([]); }}>Batal</Button>
                         <Button onClick={handleAssignPenguji} disabled={selectedDosen.length === 0 || pengujiForm.processing}>Simpan Penguji ({selectedDosen.length})</Button>
                     </div>
                 </div>

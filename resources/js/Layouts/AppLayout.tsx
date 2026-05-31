@@ -11,6 +11,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   name: string;
+  section?: string; // optional group header shown above item
 }
 
 const icons = {
@@ -163,13 +164,22 @@ function getSidebarMenu(role: string, isKaprodi?: boolean, originalRole?: string
     { label: 'Profil Saya', href: '/profil', icon: icons.profil, name: 'profil' },
   ];
 
+  // Menu dosen yang juga dimiliki kaprodi (kaprodi bisa membimbing & menguji)
+  const dosenSharedItems: NavItem[] = [
+    { label: 'Mahasiswa Bimbingan', href: '/dosen/bimbingan', icon: icons.bimbingan, name: 'dosen.bimbingan', section: 'Sebagai Dosen' },
+    { label: 'Jadwal Ujian', href: '/dosen/ujian', icon: icons.jadwal, name: 'dosen.ujian' },
+    { label: 'Penilaian', href: '/dosen/penilaian', icon: icons.penilaian, name: 'dosen.penilaian' },
+  ];
+
   const kaprodiMenu: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: icons.dashboard, name: 'dashboard' },
-    { label: 'Persetujuan Judul', href: '/kaprodi/judul', icon: icons.check, name: 'kaprodi.judul' },
-    { label: 'Persetujuan Pembimbing', href: '/kaprodi/pembimbing', icon: icons.dosen, name: 'kaprodi.pembimbing' },
+    // ── Fungsi Kaprodi ──
+    { label: 'Persetujuan Judul', href: '/kaprodi/judul', icon: icons.check, name: 'kaprodi.judul', section: 'Fungsi Kaprodi' },
     { label: 'Pengajuan Ujian', href: '/kaprodi/ujian', icon: icons.ujian, name: 'kaprodi.ujian' },
     { label: 'Persetujuan Nilai', href: '/kaprodi/nilai', icon: icons.penilaian, name: 'kaprodi.nilai' },
     { label: 'Laporan', href: '/kaprodi/laporan', icon: icons.laporan, name: 'kaprodi.laporan' },
+    // ── Fungsi Dosen (kaprodi bisa membimbing & menguji) ──
+    ...dosenSharedItems,
   ];
 
   const pimpinanMenu: NavItem[] = [
@@ -189,18 +199,10 @@ function getSidebarMenu(role: string, isKaprodi?: boolean, originalRole?: string
 
   let menu = map[role] || adminMenu;
 
+  // Pimpinan yang juga kaprodi mendapat menu kaprodi
   if (role === 'pimpinan' && isKaprodi) {
     const kMenu = kaprodiMenu.filter(m => m.name !== 'dashboard');
     menu = [...menu, ...kMenu];
-  }
-
-  if ((role === 'pimpinan' || role === 'k.prodi') && originalRole === 'dosen') {
-    const dosenItems: NavItem[] = [
-      { label: 'Mahasiswa Bimbingan', href: '/dosen/bimbingan', icon: icons.bimbingan, name: 'dosen.bimbingan' },
-      { label: 'Jadwal Ujian', href: '/dosen/ujian', icon: icons.jadwal, name: 'dosen.ujian' },
-      { label: 'Penilaian', href: '/dosen/penilaian', icon: icons.penilaian, name: 'dosen.penilaian' },
-    ];
-    menu = [...menu, ...dosenItems];
   }
 
   return menu;
@@ -314,51 +316,67 @@ export default function AppLayout({ children, title }: Props) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-[2px]">
-          {menus.map((item) => {
+          {menus.map((item, idx) => {
             const isActive =
               currentPath === item.href || currentPath.startsWith(item.href + '/');
 
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                title={!sidebarOpen ? item.label : undefined}
-                className={`
-                  flex items-center gap-3 px-3 py-[9px] rounded-xl text-[12.5px] font-medium
-                  transition-all duration-200 group
-                  ${!sidebarOpen ? 'justify-center' : ''}
-                `}
-                style={{
-                  backgroundColor: isActive ? 'rgba(232,80,10,0.20)' : 'transparent',
-                  color: isActive ? '#ffffff' : 'rgba(255,255,255,0.45)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive)
-                    e.currentTarget.style.backgroundColor = 'rgba(232,80,10,0.10)';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <span
-                  className="flex-shrink-0"
+              <React.Fragment key={item.name}>
+                {/* Section header */}
+                {sidebarOpen && item.section && (
+                  <div className="pt-3 pb-1 px-2">
+                    <span
+                      className="text-[9.5px] font-bold uppercase tracking-[0.12em]"
+                      style={{ color: 'rgba(255,255,255,0.25)' }}
+                    >
+                      {item.section}
+                    </span>
+                  </div>
+                )}
+                {!sidebarOpen && item.section && (
+                  <div className="border-t my-1 mx-2" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+                )}
+
+                <Link
+                  href={item.href}
+                  title={!sidebarOpen ? item.label : undefined}
+                  className={`
+                    flex items-center gap-3 px-3 py-[9px] rounded-xl text-[12.5px] font-medium
+                    transition-all duration-200 group
+                    ${!sidebarOpen ? 'justify-center' : ''}
+                  `}
                   style={{
-                    color: isActive ? '#E8500A' : 'rgba(255,255,255,0.30)',
+                    backgroundColor: isActive ? 'rgba(232,80,10,0.20)' : 'transparent',
+                    color: isActive ? '#ffffff' : 'rgba(255,255,255,0.45)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive)
+                      e.currentTarget.style.backgroundColor = 'rgba(232,80,10,0.10)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
-                  {item.icon}
-                </span>
-
-                {sidebarOpen && <span className="flex-1 truncate">{item.label}</span>}
-
-                {/* Active indicator dot */}
-                {sidebarOpen && isActive && (
                   <span
-                    className="w-[5px] h-[5px] rounded-full flex-shrink-0"
-                    style={{ backgroundColor: '#E8500A' }}
-                  />
-                )}
-              </Link>
+                    className="flex-shrink-0"
+                    style={{
+                      color: isActive ? '#E8500A' : 'rgba(255,255,255,0.30)',
+                    }}
+                  >
+                    {item.icon}
+                  </span>
+
+                  {sidebarOpen && <span className="flex-1 truncate">{item.label}</span>}
+
+                  {/* Active indicator dot */}
+                  {sidebarOpen && isActive && (
+                    <span
+                      className="w-[5px] h-[5px] rounded-full flex-shrink-0"
+                      style={{ backgroundColor: '#E8500A' }}
+                    />
+                  )}
+                </Link>
+              </React.Fragment>
             );
           })}
         </nav>

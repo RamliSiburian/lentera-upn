@@ -75,6 +75,16 @@ class BimbinganController extends Controller
             ->orderBy('urutan')
             ->get();
 
+        // Tahapan yang sudah pernah di-ACC (approved) oleh mahasiswa ini
+        // → akan di-disable di frontend agar tidak bisa dipilih ulang
+        $approvedTahapanIds = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+            ->where('status', 'approved')
+            ->whereNotNull('tahapan_id')
+            ->pluck('tahapan_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
         // Determine next tipe & canCreate
         $nextTipe = 'bimbingan';
         $canCreate = false;
@@ -100,19 +110,20 @@ class BimbinganController extends Controller
         }
 
         return Inertia::render('Mahasiswa/Bimbingan/Index', [
-            'bimbingans' => $bimbingans,
-            'judul' => $judul ? [
-                'id' => $judul->id,
-                'judul' => $judul->judul,
+            'bimbingans'         => $bimbingans,
+            'judul'              => $judul ? [
+                'id'         => $judul->id,
+                'judul'      => $judul->judul,
                 'pembimbing' => $judul->pembimbing->map(fn($p) => [
-                    'id' => $p->id,
+                    'id'    => $p->id,
                     'urutan' => $p->urutan === 'pembimbing_utama' ? 1 : 2,
                     'dosen' => ['id' => $p->dosen->id, 'nama' => $p->dosen->user->name, 'nidn' => $p->dosen->nidn],
                 ]),
             ] : null,
-            'tahapanList' => $tahapanList,
+            'tahapanList'        => $tahapanList,
+            'approvedTahapanIds' => $approvedTahapanIds, // ← baru: tahapan yang sudah ACC
             'canCreateBimbingan' => $canCreate,
-            'nextTipe' => $nextTipe,
+            'nextTipe'           => $nextTipe,
         ]);
     }
 

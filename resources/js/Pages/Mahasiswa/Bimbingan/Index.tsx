@@ -10,7 +10,7 @@ interface Komentar { id: string; komentar: string; created_at: string; user: { n
 interface Bimbingan { id: string; tipe: string; status: string; catatan_mhs: string | null; versi: number; created_at: string; tahapan_config: TahapanConfig; files: BimbinganFile[]; approvals: Approval[]; komentar: Komentar[]; }
 interface PembimbingData { id: string; urutan: number; dosen: { id: string; nama: string; nidn: string }; }
 interface JudulData { id: string; judul: string; pembimbing: PembimbingData[]; }
-interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList: TahapanConfig[]; canCreateBimbingan: boolean; nextTipe: string; [key: string]: any; }
+interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList: TahapanConfig[]; approvedTahapanIds: string[]; canCreateBimbingan: boolean; nextTipe: string; [key: string]: any; }
 
 // ─── FIK UPNVJ Color Tokens ──────────────────────────────────────────────────
 // Primary orange : #E8500A
@@ -20,7 +20,7 @@ interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList:
 // Surface        : #F5F3EE
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function Index({ bimbingans, judul, tahapanList, canCreateBimbingan, nextTipe }: Props) {    
+export default function Index({ bimbingans, judul, tahapanList, approvedTahapanIds = [], canCreateBimbingan, nextTipe }: Props) {    
     const { flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
     const [activeBimbingan, setActiveBimbingan] = useState<string | null>(null);
@@ -169,7 +169,14 @@ export default function Index({ bimbingans, judul, tahapanList, canCreateBimbing
 
                             {/* Tahapan Select */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tahapan</label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                    Tahapan
+                                    {approvedTahapanIds.length > 0 && (
+                                        <span className="ml-2 text-xs font-normal text-green-600">
+                                            ({approvedTahapanIds.length} tahapan sudah selesai)
+                                        </span>
+                                    )}
+                                </label>
                                 <select
                                     value={data.tahapan_config_id}
                                     onChange={e => setData('tahapan_config_id', e.target.value)}
@@ -180,8 +187,26 @@ export default function Index({ bimbingans, judul, tahapanList, canCreateBimbing
                                     onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
                                 >
                                     <option value="">Pilih Tahapan</option>
-                                    {tahapanList.map(t => <option key={t.id} value={t.id}>{t.nama_tahapan}</option>)}
+                                    {tahapanList.map(t => {
+                                        const isApproved = approvedTahapanIds.includes(t.id);
+                                        return (
+                                            <option
+                                                key={t.id}
+                                                value={t.id}
+                                                disabled={isApproved}
+                                                style={isApproved ? { color: '#aaa', backgroundColor: '#f5f5f5' } : {}}
+                                            >
+                                                {isApproved ? `✓ ${t.nama_tahapan} (Selesai)` : t.nama_tahapan}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
+                                <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                                    <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Tahapan bertanda ✓ sudah selesai dan tidak bisa dipilih kembali
+                                </p>
                             </div>
 
                             {/* File Upload */}
