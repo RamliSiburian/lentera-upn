@@ -3,46 +3,67 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApprovalConfig;
 use App\Models\JudulPengajuan;
 use App\Models\Pembimbing;
+use App\Services\ApprovalService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class JudulController extends Controller
 {
-    public function index(\App\Services\ApprovalService $approvalService)
+    /**
+     * Step admin yang optional di suatu module.
+     * Admin tetap bisa aksi meski step-nya optional.
+     */
+    private function getAdminAllowedSteps(ApprovalService $approvalService, string $moduleKey): array
     {
-        $judulSteps = $approvalService->getStepsForRole('judul_pengajuan', 'admin');
-        
-        $judulsQuery = JudulPengajuan::with(['konsentrasi', 'mahasiswa.user', 'pembimbing.dosen.user'])
-            ->orderBy('created_at', 'desc');
+        $steps = $approvalService->getStepsForRole($moduleKey, 'admin');
+        return empty($steps) ? ['submitted'] : $steps;
+    }
 
-        if (!empty($judulSteps)) {
-            $judulsQuery->whereIn('status', $judulSteps);
-        } else {
-            // fallback if no config
-            $judulsQuery->where('status', 'submitted');
-        }
+    // ─── Judul Pengajuan ────────────────────────────────────────
+    public function index(ApprovalService $approvalService)
+    {
+        $judulSteps      = $this->getAdminAllowedSteps($approvalService, 'judul_pengajuan');
+        $pembimbingSteps = $this->getAdminAllowedSteps($approvalService, 'pembimbing');
 
-        $juduls = $judulsQuery->get();
+        // Judul yang butuh verifikasi admin
+        $juduls = JudulPengajuan::with([
+            'konsentrasi',
+            'mahasiswa.user',
+            'mahasiswa.prodi',
+            'pembimbing.dosen.user',
+        ])
+        ->whereIn('status', $judulSteps)
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+        // Pembimbing yang butuh verifikasi admin (tampilkan di halaman yang sama)
+        $pembimbings = Pembimbing::with(['mahasiswa.user', 'mahasiswa.prodi', 'dosen.user'])
+            ->whereIn('status', $pembimbingSteps)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return Inertia::render('Admin/Judul/Index', [
-            'juduls' => $juduls,
+            'juduls'          => $juduls,
+            'pendingSteps'    => $judulSteps,
+            'pembimbings'     => $pembimbings,          // ← baru: daftar pembimbing pending
+            'pembimbingSteps' => $pembimbingSteps,
         ]);
     }
 
-    public function verify($id, \App\Services\ApprovalService $approvalService)
+    public function verify($id, ApprovalService $approvalService)
     {
-        $judulSteps = $approvalService->getStepsForRole('judul_pengajuan', 'admin');
-        if (empty($judulSteps)) $judulSteps = ['submitted'];
-
+        $judulSteps = $this->getAdminAllowedSteps($approvalService, 'judul_pengajuan');
         $judul = JudulPengajuan::whereIn('status', $judulSteps)->findOrFail($id);
-        
+
         $approvalService->processApproval(
             $judul,
             'judul_pengajuan',
             'approved',
-            ['actor_id' => \Illuminate\Support\Facades\Auth::id()],
+            ['actor_id' => Auth::id()],
             'judul_approval_log',
             'judul_id'
         );
@@ -50,23 +71,21 @@ class JudulController extends Controller
         return redirect()->route('admin.judul')->with('success', 'Judul berhasil diverifikasi.');
     }
 
-    public function reject(Request $request, $id, \App\Services\ApprovalService $approvalService)
+    public function reject(Request $request, $id, ApprovalService $approvalService)
     {
-        $validated = $request->validate(['catatan' => 'required|string']);
-        
-        $judulSteps = $approvalService->getStepsForRole('judul_pengajuan', 'admin');
-        if (empty($judulSteps)) $judulSteps = ['submitted'];
+        $validated  = $request->validate(['catatan' => 'required|string']);
+        $judulSteps = $this->getAdminAllowedSteps($approvalService, 'judul_pengajuan');
+        $judul      = JudulPengajuan::whereIn('status', $judulSteps)->findOrFail($id);
 
-        $judul = JudulPengajuan::whereIn('status', $judulSteps)->findOrFail($id);
-        $judul->keterangan_tolak = $validated['catatan']; // optionally store here too
+        $judul->keterangan_tolak = $validated['catatan'];
 
         $approvalService->processApproval(
             $judul,
             'judul_pengajuan',
             'rejected',
             [
-                'actor_id' => \Illuminate\Support\Facades\Auth::id(),
-                'catatan' => $validated['catatan']
+                'actor_id' => Auth::id(),
+                'catatan'  => $validated['catatan'],
             ],
             'judul_approval_log',
             'judul_id'
@@ -75,22 +94,44 @@ class JudulController extends Controller
         return redirect()->route('admin.judul')->with('success', 'Judul ditolak.');
     }
 
-    public function verifyPembimbing($id, \App\Services\ApprovalService $approvalService)
+    // ─── Pembimbing ─────────────────────────────────────────────
+    public function verifyPembimbing($id, ApprovalService $approvalService)
     {
-        $pembimbingSteps = $approvalService->getStepsForRole('pembimbing', 'admin');
-        if (empty($pembimbingSteps)) $pembimbingSteps = ['requested'];
+        $pembimbingSteps = $this->getAdminAllowedSteps($approvalService, 'pembimbing');
+        $pembimbing      = Pembimbing::whereIn('status', $pembimbingSteps)->findOrFail($id);
 
-        $pembimbing = Pembimbing::whereIn('status', $pembimbingSteps)->findOrFail($id);
-        
         $approvalService->processApproval(
             $pembimbing,
             'pembimbing',
             'approved',
-            ['actor_id' => \Illuminate\Support\Facades\Auth::id()],
+            ['actor_id' => Auth::id()],
             'pembimbing_approval_log',
             'pembimbing_id'
         );
 
         return redirect()->route('admin.judul')->with('success', 'Pembimbing diverifikasi.');
+    }
+
+    public function rejectPembimbing(Request $request, $id, ApprovalService $approvalService)
+    {
+        $validated       = $request->validate(['catatan' => 'required|string']);
+        $pembimbingSteps = $this->getAdminAllowedSteps($approvalService, 'pembimbing');
+        $pembimbing      = Pembimbing::whereIn('status', $pembimbingSteps)->findOrFail($id);
+
+        $approvalService->processApproval(
+            $pembimbing,
+            'pembimbing',
+            'rejected',
+            [
+                'actor_id' => Auth::id(),
+                'catatan'  => $validated['catatan'],
+            ],
+            'pembimbing_approval_log',
+            'pembimbing_id'
+        );
+
+        $pembimbing->update(['keterangan_tolak' => $validated['catatan']]);
+
+        return redirect()->route('admin.judul')->with('success', 'Pembimbing ditolak.');
     }
 }

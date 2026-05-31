@@ -8,6 +8,7 @@ use App\Models\BimbinganAcc;
 use App\Models\Dosen;
 use App\Models\Komentar;
 use App\Models\Pembimbing;
+use App\Services\ApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -19,9 +20,15 @@ class BimbinganController extends Controller
         return Dosen::where('user_id', Auth::id())->firstOrFail();
     }
 
-    public function index()
+    public function index(ApprovalService $approvalService)
     {
         $dosen = $this->getDosen();
+
+        // Step dosen yang perlu dikonfirmasi
+        $dosenPendingSteps = $approvalService->getStepsForRole('pembimbing', 'dosen');
+        if (empty($dosenPendingSteps)) {
+            $dosenPendingSteps = ['dosen_approval', 'requested'];
+        }
 
         $pembimbings = Pembimbing::where('dosen_id', $dosen->id)
             ->with([
@@ -99,37 +106,51 @@ class BimbinganController extends Controller
             });
 
         return Inertia::render('Dosen/Bimbingan/Index', [
-            'pembimbings' => $pembimbings,
-            'dosen' => ['id' => $dosen->id, 'nama' => $dosen->user->name ?? '-', 'nidn' => $dosen->nidn],
+            'pembimbings'       => $pembimbings,
+            'dosenPendingSteps' => $dosenPendingSteps, // step yang butuh konfirmasi dosen
+            'dosen'             => ['id' => $dosen->id, 'nama' => $dosen->user->name ?? '-', 'nidn' => $dosen->nidn],
         ]);
     }
 
-    public function approvePembimbing($id)
+    public function approvePembimbing($id, ApprovalService $approvalService)
     {
         $dosen = $this->getDosen();
+
+        // Step yang menjadi tanggung jawab dosen (dari approval config)
+        $dosenSteps = $approvalService->getStepsForRole('pembimbing', 'dosen');
+        if (empty($dosenSteps)) {
+            $dosenSteps = ['dosen_approval', 'requested']; // fallback
+        }
+
         $pembimbing = Pembimbing::where('dosen_id', $dosen->id)
-            ->where('status', 'requested')
+            ->whereIn('status', $dosenSteps)
             ->findOrFail($id);
 
         $pembimbing->update([
-            'status' => 'approved',
+            'status'      => 'approved',
             'dosen_acc_at' => now(),
         ]);
 
         return redirect()->route('dosen.bimbingan')->with('success', 'Pembimbing diterima.');
     }
 
-    public function rejectPembimbing(Request $request, $id)
+    public function rejectPembimbing(Request $request, $id, ApprovalService $approvalService)
     {
         $dosen = $this->getDosen();
+
+        $dosenSteps = $approvalService->getStepsForRole('pembimbing', 'dosen');
+        if (empty($dosenSteps)) {
+            $dosenSteps = ['dosen_approval', 'requested'];
+        }
+
         $pembimbing = Pembimbing::where('dosen_id', $dosen->id)
-            ->where('status', 'requested')
+            ->whereIn('status', $dosenSteps)
             ->findOrFail($id);
 
         $validated = $request->validate(['catatan' => 'required|string']);
 
         $pembimbing->update([
-            'status' => 'rejected',
+            'status'           => 'rejected',
             'keterangan_tolak' => $validated['catatan'],
         ]);
 

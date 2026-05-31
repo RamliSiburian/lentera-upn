@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            ProdiSeeder::class,       // harus pertama karena UserSeeder butuh prodi
             UserSeeder::class,
             KonsentrasiSeeder::class,
             RuanganSeeder::class,

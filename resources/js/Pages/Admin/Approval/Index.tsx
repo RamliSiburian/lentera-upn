@@ -99,6 +99,39 @@ const roleOpts = [
     { value: 'mahasiswa', label: 'Mahasiswa' },
 ];
 
+const stepOptsByModule: Record<string, { value: string; label: string; defaultLabel: string; defaultRole: string; }[]> = {
+    judul_pengajuan: [
+        { value: 'submitted', label: 'Diajukan (submitted)', defaultLabel: 'Diajukan', defaultRole: 'admin' },
+        { value: 'verified_admin', label: 'Verifikasi Admin (verified_admin)', defaultLabel: 'Verifikasi Admin', defaultRole: 'admin' },
+        { value: 'approved_kaprodi', label: 'Disetujui Kaprodi (approved_kaprodi)', defaultLabel: 'Persetujuan Kaprodi', defaultRole: 'pimpinan' },
+        { value: 'approved', label: 'Disetujui (approved)', defaultLabel: 'Disetujui', defaultRole: 'pimpinan' },
+        { value: 'rejected', label: 'Ditolak (rejected)', defaultLabel: 'Ditolak', defaultRole: 'admin' }
+    ],
+    pembimbing: [
+        { value: 'requested', label: 'Diajukan (requested)', defaultLabel: 'Diajukan', defaultRole: 'admin' },
+        { value: 'verified_admin', label: 'Verifikasi Admin (verified_admin)', defaultLabel: 'Verifikasi Admin', defaultRole: 'admin' },
+        { value: 'approved', label: 'Disetujui (approved)', defaultLabel: 'Disetujui', defaultRole: 'pimpinan' },
+        { value: 'rejected', label: 'Ditolak (rejected)', defaultLabel: 'Ditolak', defaultRole: 'admin' }
+    ],
+    bimbingan: [
+        { value: 'submitted', label: 'Diajukan (submitted)', defaultLabel: 'Diajukan', defaultRole: 'dosen' },
+        { value: 'in_review', label: 'Review (in_review)', defaultLabel: 'Review Pembimbing', defaultRole: 'dosen' },
+        { value: 'approved', label: 'Disetujui (approved)', defaultLabel: 'Disetujui', defaultRole: 'dosen' },
+        { value: 'rejected', label: 'Ditolak (rejected)', defaultLabel: 'Ditolak', defaultRole: 'dosen' }
+    ],
+    ujian: [
+        { value: 'submitted', label: 'Diajukan (submitted)', defaultLabel: 'Diajukan', defaultRole: 'admin' },
+        { value: 'reviewed', label: 'Direview (reviewed)', defaultLabel: 'Direview', defaultRole: 'admin' },
+        { value: 'approved', label: 'Disetujui (approved)', defaultLabel: 'Disetujui', defaultRole: 'pimpinan' },
+        { value: 'rejected', label: 'Ditolak (rejected)', defaultLabel: 'Ditolak', defaultRole: 'admin' }
+    ],
+    penilaian: [
+        { value: 'penguji_input', label: 'Input Penguji (penguji_input)', defaultLabel: 'Input Nilai Penguji', defaultRole: 'dosen' },
+        { value: 'approved', label: 'Disetujui (approved)', defaultLabel: 'Disetujui', defaultRole: 'pimpinan' },
+        { value: 'rejected', label: 'Ditolak (rejected)', defaultLabel: 'Ditolak', defaultRole: 'pimpinan' }
+    ]
+};
+
 const roleClass = (r: string) => {
     if (r === 'admin') return 'role-admin';
     if (r === 'pimpinan' || r === 'k.prodi') return 'role-pimpinan';
@@ -133,6 +166,18 @@ export default function ApprovalIndex({ configs }: Props) {
     const updateStep = (idx: number, field: keyof Step, value: any) => {
         const steps = [...form.steps];
         steps[idx] = { ...steps[idx], [field]: value };
+        setForm({ ...form, steps });
+    };
+    const handleStepKeyChange = (idx: number, stepVal: string) => {
+        const steps = [...form.steps];
+        const opts = stepOptsByModule[form.module_key] || [];
+        const matchedOpt = opts.find(opt => opt.value === stepVal);
+        steps[idx] = {
+            ...steps[idx],
+            step: stepVal,
+            label: matchedOpt ? matchedOpt.defaultLabel : (steps[idx].label || ''),
+            role: matchedOpt ? matchedOpt.defaultRole : (steps[idx].role || 'admin')
+        };
         setForm({ ...form, steps });
     };
     const addStep = () => setForm({ ...form, steps: [...form.steps, defaultStep()] });

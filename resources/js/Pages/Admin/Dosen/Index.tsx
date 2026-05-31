@@ -669,16 +669,9 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                                             </span>
                                         </td>
 
-                                        {/* Actions */}
+                                        {/* Actions - Kaprodi kini dikelola dari menu Program Studi */}
                                         <td>
                                             <div className="act-wrap">
-                                                <button
-                                                    className={`act-icon act-icon-kaprodi${d.is_kaprodi ? ' is-kaprodi' : ''}`}
-                                                    onClick={() => router.post(`/admin/dosen/${d.id}/toggle-kaprodi`)}
-                                                    title={d.is_kaprodi ? 'Cabut Status Kaprodi' : 'Jadikan Kaprodi'}
-                                                >
-                                                    <svg fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
-                                                </button>
                                                 <button
                                                     className={`act-icon act-icon-pimpinan${d.is_pimpinan ? ' is-pimpinan' : ''}`}
                                                     onClick={() => router.post(`/admin/dosen/${d.id}/toggle-pimpinan`)}

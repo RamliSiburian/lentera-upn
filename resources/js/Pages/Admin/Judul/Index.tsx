@@ -14,9 +14,9 @@ interface Judul {
     konsentrasi: Konsentrasi; mahasiswa: Mahasiswa; pembimbing: PembimbingData[]; created_at: string;
 }
 
-interface Props { juduls: Judul[]; [key: string]: any; }
+interface Props { juduls: Judul[]; pendingSteps?: string[]; [key: string]: any; }
 
-export default function Index({ juduls }: Props) {
+export default function Index({ juduls, pendingSteps = [] }: Props) {
     const [rejectId, setRejectId] = useState<string | null>(null);
     const [rejectModal, setRejectModal] = useState(false);
     const [search, setSearch] = useState('');
@@ -27,14 +27,21 @@ export default function Index({ juduls }: Props) {
     const handleReject = (id: string) => { rejectForm.post(route('admin.judul.reject', id), { onSuccess: () => { setRejectId(null); setRejectModal(false); } }); };
     const handleVerifyPembimbing = (pembimbingId: string) => { router.post(route('admin.pembimbing.verify', pembimbingId)); };
 
-    const statusColor = (s: string) => ({
-        draft: 'gray', submitted: 'blue', verified_admin: 'yellow', rejected: 'red',
-        approved_kaprodi: 'green', rejected_kaprodi: 'red',
-    }[s] || 'gray');
-    const statusLabel = (s: string) => ({
-        draft: 'Draft', submitted: 'Diajukan', verified_admin: 'Diverifikasi Admin',
-        rejected: 'Ditolak', approved_kaprodi: 'Disetujui Kaprodi', rejected_kaprodi: 'Ditolak Kaprodi',
-    }[s] || s);
+    const statusColor = (s: string): string => ({
+        draft: 'gray', submitted: 'blue',
+        'verified_admin': 'yellow', 'verified-admin': 'yellow',
+        rejected: 'red',
+        'approved_kaprodi': 'green', 'kaprodi_approval': 'green',
+        approved: 'green',
+        'rejected_kaprodi': 'red',
+    } as Record<string, string>)[s] ?? 'gray';
+    const statusLabel = (s: string): string => ({
+        draft: 'Draft', submitted: 'Diajukan',
+        'verified_admin': 'Diverifikasi Admin', 'verified-admin': 'Diverifikasi Admin',
+        rejected: 'Ditolak', approved: 'Disetujui',
+        'approved_kaprodi': 'Disetujui Kaprodi', 'kaprodi_approval': 'Menunggu Kaprodi',
+        'rejected_kaprodi': 'Ditolak Kaprodi',
+    } as Record<string, string>)[s] ?? s;
     const pembimbingStatusColor = (s: string) => ({
         requested: 'yellow', verified_admin: 'blue', approved: 'green', rejected: 'red',
     }[s] || 'gray');
@@ -44,21 +51,26 @@ export default function Index({ juduls }: Props) {
 
     const getMhsName = (j: Judul) => j.mahasiswa?.user?.name || '-';
 
+    // Pending = status yang masih dalam alur approval (belum final)
+    const isRejected = (s: string) => s === 'rejected' || s.startsWith('rejected');
+    const isApproved = (s: string) => s === 'approved';
+    const isPending  = (s: string) => !isRejected(s) && !isApproved(s) && s !== 'draft';
+
     const filtered = juduls.filter(j => {
         const name = getMhsName(j).toLowerCase();
         const matchSearch = j.judul.toLowerCase().includes(search.toLowerCase()) || name.includes(search.toLowerCase()) || j.mahasiswa?.nim?.toLowerCase().includes(search.toLowerCase());
         const matchTab = activeTab === 'all' ||
-            (activeTab === 'pending' && ['submitted', 'verified_admin'].includes(j.status)) ||
-            (activeTab === 'approved' && ['approved_kaprodi'].includes(j.status)) ||
-            (activeTab === 'rejected' && ['rejected', 'rejected_kaprodi'].includes(j.status));
+            (activeTab === 'pending' && isPending(j.status)) ||
+            (activeTab === 'approved' && isApproved(j.status)) ||
+            (activeTab === 'rejected' && isRejected(j.status));
         return matchSearch && matchTab;
     });
 
     const counts = {
         all: juduls.length,
-        pending: juduls.filter(j => ['submitted', 'verified_admin'].includes(j.status)).length,
-        approved: juduls.filter(j => ['approved_kaprodi'].includes(j.status)).length,
-        rejected: juduls.filter(j => ['rejected', 'rejected_kaprodi'].includes(j.status)).length,
+        pending: juduls.filter(j => isPending(j.status)).length,
+        approved: juduls.filter(j => isApproved(j.status)).length,
+        rejected: juduls.filter(j => isRejected(j.status)).length,
     };
 
     return (
@@ -143,7 +155,7 @@ export default function Index({ juduls }: Props) {
                                     </div>
                                 )}
 
-                                {j.status === 'submitted' && (
+                                {pendingSteps.includes(j.status) && (
                                     <div className="mt-4 pt-4 border-t border-gray-50 flex items-center gap-2">
                                         <Button variant="success" onClick={() => handleVerify(j.id)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}>Verifikasi Judul</Button>
                                         <Button variant="danger" onClick={() => { setRejectId(j.id); setRejectModal(true); }} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}>Tolak</Button>

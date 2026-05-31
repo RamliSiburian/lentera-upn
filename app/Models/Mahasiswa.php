@@ -20,7 +20,7 @@ class Mahasiswa extends Model
     protected $fillable = [
         'user_id',
         'nim',
-        'program_studi',
+        'prodi_id',
         'angkatan',
         'status',
         'no_hp',
@@ -43,6 +43,11 @@ class Mahasiswa extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function prodi(): BelongsTo
+    {
+        return $this->belongsTo(ProgramStudi::class, 'prodi_id');
     }
 
     public function judulPengajuan(): HasMany

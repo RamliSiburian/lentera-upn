@@ -442,12 +442,12 @@ export default function Index({ juduls, konsentrasis }: Props) {
         const total = j.pembimbing.length;
         return approved === total ? 100 : (approved > 0 ? 80 : 60);
     };
-    const statusBadgeClass = (s: string) => ({ draft: 'badge-gray', submitted: 'badge-blue', verified_admin: 'badge-yellow', rejected: 'badge-red', approved_kaprodi: 'badge-green', rejected_kaprodi: 'badge-red' }[s] || 'badge-gray');
-    const statusLabel = (s: string) => ({ draft: 'Draft', submitted: 'Diajukan', verified_admin: 'Diverifikasi Admin', rejected: 'Ditolak', approved_kaprodi: 'Disetujui Kaprodi', rejected_kaprodi: 'Ditolak Kaprodi' }[s] || s);
+    const statusBadgeClass = (s: string) => ({ draft: 'badge-gray', submitted: 'badge-blue', verified_admin: 'badge-yellow', rejected: 'badge-red', approved: 'badge-green', rejected_kaprodi: 'badge-red' }[s] || 'badge-gray');
+    const statusLabel = (s: string) => ({ draft: 'Draft', submitted: 'Diajukan', verified_admin: 'Diverifikasi Admin', rejected: 'Ditolak', approved: 'Disetujui Kaprodi', rejected_kaprodi: 'Ditolak Kaprodi' }[s] || s);
     const pembimbingBadgeClass = (s: string) => ({ requested: 'badge-yellow', verified_admin: 'badge-blue', approved: 'badge-green', rejected: 'badge-red' }[s] || 'badge-gray');
     const pembimbingStatusLabel = (s: string) => ({ requested: 'Diajukan', verified_admin: 'Diverifikasi', approved: 'Diterima', rejected: 'Ditolak' }[s] || s);
     const stepProgress = (j: Judul) => {
-        const base = ({ draft: 0, submitted: 20, verified_admin: 40, approved_kaprodi: 60, rejected: 0, rejected_kaprodi: 0 }[j.status] || 0);
+        const base = ({ draft: 0, submitted: 20, verified_admin: 40, approved: 60, rejected: 0, rejected_kaprodi: 0 }[j.status] || 0);
         if (base >= 60 && j.pembimbing && j.pembimbing.length > 0) return getPembimbingProgress(j);
         return base;
     };
@@ -527,7 +527,7 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                         <div className="judul-progress">
                                             <div className="progress-track">
                                                 <div
-                                                    className={`progress-fill${j.status === 'approved_kaprodi' ? ' progress-fill-green' : ''}`}
+                                                    className={`progress-fill${j.status === 'approved' ? ' progress-fill-green' : ''}`}
                                                     style={{ width: `${stepProgress(j)}%` }}
                                                 />
                                             </div>
@@ -597,7 +597,7 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                                 </button>
                                             </>
                                         )}
-                                        {j.status === 'approved_kaprodi' && (!j.pembimbing || j.pembimbing.length === 0) && (
+                                        {j.status === 'approved' && (!j.pembimbing || j.pembimbing.length === 0) && (
                                             <button className="act-btn act-btn-primary" onClick={() => { setShowPembimbingModal(j.id); handleLoadDosen(j.konsentrasi?.id); }}>
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                                 Pilih Pembimbing

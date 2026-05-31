@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Mahasiswa;
+use App\Models\ProgramStudi;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,42 +13,51 @@ class MahasiswaController extends Controller
 {
     public function index()
     {
-        $mahasiswa = Mahasiswa::with('user')->orderBy('created_at', 'desc')->get();
+        $mahasiswa = Mahasiswa::with(['user', 'prodi'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $prodis = ProgramStudi::where('is_active', true)
+            ->orderBy('jenjang')
+            ->orderBy('nama')
+            ->get();
 
         return Inertia::render('Admin/Mahasiswa/Index', [
             'mahasiswa' => $mahasiswa,
+            'prodis'    => $prodis,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'nim' => 'required|string|unique:mahasiswa,nim',
-            'program_studi' => 'required|string|max:255',
-            'angkatan' => 'required|integer|min:2010|max:2030',
-            'no_hp' => 'nullable|string|max:20',
-            'password' => 'required|string|min:6',
+            'name'      => 'required|string|max:255',
+            'email'     => 'required|email|unique:users,email',
+            'nim'       => 'required|string|unique:mahasiswa,nim',
+            'prodi_id'  => 'required|uuid|exists:program_studi,id',
+            'angkatan'  => 'required|integer|min:2010|max:2035',
+            'no_hp'     => 'nullable|string|max:20',
+            'password'  => 'required|string|min:6',
         ]);
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => bcrypt($validated['password']),
-            'role' => 'mahasiswa',
+            'name'              => $validated['name'],
+            'email'             => $validated['email'],
+            'password'          => bcrypt($validated['password']),
+            'role'              => 'mahasiswa',
+            'email_verified_at' => now(),
         ]);
 
         Mahasiswa::create([
-            'user_id' => $user->id,
-            'nim' => $validated['nim'],
-            'program_studi' => $validated['program_studi'],
+            'user_id'  => $user->id,
+            'nim'      => $validated['nim'],
+            'prodi_id' => $validated['prodi_id'],
             'angkatan' => $validated['angkatan'],
-            'no_hp' => $validated['no_hp'],
-            'status' => 'aktif',
+            'no_hp'    => $validated['no_hp'],
+            'status'   => 'aktif',
         ]);
 
-        return redirect()->back()->with('success', 'Mahasiswa berhasil ditambahkan');
+        return redirect()->back()->with('success', 'Mahasiswa berhasil ditambahkan.');
     }
 
     public function update(Request $request, $id)
@@ -55,29 +65,29 @@ class MahasiswaController extends Controller
         $mhs = Mahasiswa::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $mhs->user_id,
-            'nim' => 'required|string|unique:mahasiswa,nim,' . $id,
-            'program_studi' => 'required|string|max:255',
-            'angkatan' => 'required|integer|min:2010|max:2030',
-            'no_hp' => 'nullable|string|max:20',
-            'status' => 'required|in:aktif,nonaktif,cuti,lulus',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email,' . $mhs->user_id,
+            'nim'      => 'required|string|unique:mahasiswa,nim,' . $id,
+            'prodi_id' => 'required|uuid|exists:program_studi,id',
+            'angkatan' => 'required|integer|min:2010|max:2035',
+            'no_hp'    => 'nullable|string|max:20',
+            'status'   => 'required|in:aktif,nonaktif,cuti,lulus',
         ]);
 
         $mhs->user->update([
-            'name' => $validated['name'],
+            'name'  => $validated['name'],
             'email' => $validated['email'],
         ]);
 
         $mhs->update([
-            'nim' => $validated['nim'],
-            'program_studi' => $validated['program_studi'],
+            'nim'      => $validated['nim'],
+            'prodi_id' => $validated['prodi_id'],
             'angkatan' => $validated['angkatan'],
-            'no_hp' => $validated['no_hp'],
-            'status' => $validated['status'],
+            'no_hp'    => $validated['no_hp'],
+            'status'   => $validated['status'],
         ]);
 
-        return redirect()->back()->with('success', 'Mahasiswa berhasil diupdate');
+        return redirect()->back()->with('success', 'Mahasiswa berhasil diupdate.');
     }
 
     public function destroy($id)
@@ -85,6 +95,6 @@ class MahasiswaController extends Controller
         $mhs = Mahasiswa::findOrFail($id);
         $mhs->delete();
 
-        return redirect()->back()->with('success', 'Mahasiswa berhasil dihapus');
+        return redirect()->back()->with('success', 'Mahasiswa berhasil dihapus.');
     }
 }

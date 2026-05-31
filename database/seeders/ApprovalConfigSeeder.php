@@ -7,101 +7,107 @@ use Illuminate\Database\Seeder;
 
 class ApprovalConfigSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $adminUser = \App\Models\User::where('role', 'admin')->first();
-        $adminId = $adminUser ? $adminUser->id : null;
+        $adminId   = $adminUser ? $adminUser->id : null;
 
         $approvalConfigs = [
+            // ─── Pengajuan Judul ──────────────────────────────────────
             [
                 'module_key' => 'judul_pengajuan',
-                'label' => 'Approval Pengajuan Judul',
-                'steps' => [
+                'label'      => 'Approval Pengajuan Judul',
+                'steps'      => [
                     [
-                        'step' => 'verified_admin',
-                        'label' => 'Verifikasi Admin',
-                        'role' => 'admin',
-                        'required' => true,
+                        'step'     => 'verified_admin',
+                        'label'    => 'Verifikasi Admin',
+                        'role'     => 'admin',
+                        'required' => false,  // opsional: jika false, mahasiswa langsung ke kaprodi
                     ],
                     [
-                        'step' => 'kaprodi_approval',
-                        'label' => 'Persetujuan Kaprodi',
-                        'role' => 'pimpinan',
+                        'step'     => 'kaprodi_approval',
+                        'label'    => 'Persetujuan Kaprodi',
+                        'role'     => 'k.prodi',  // ← harus k.prodi, bukan pimpinan
                         'required' => true,
                     ],
                 ],
             ],
+
+            // ─── Pembimbing ───────────────────────────────────────────
             [
                 'module_key' => 'pembimbing',
-                'label' => 'Approval Pembimbing',
-                'steps' => [
+                'label'      => 'Approval Pembimbing',
+                'steps'      => [
                     [
-                        'step' => 'verified_admin',
-                        'label' => 'Verifikasi Admin',
-                        'role' => 'admin',
+                        'step'     => 'verified_admin',
+                        'label'    => 'Verifikasi Admin',
+                        'role'     => 'admin',
+                        'required' => false,
+                    ],
+                    [
+                        'step'     => 'kaprodi_approval',
+                        'label'    => 'Persetujuan Kaprodi',
+                        'role'     => 'k.prodi',
                         'required' => true,
                     ],
                     [
-                        'step' => 'kaprodi_approval',
-                        'label' => 'Persetujuan Kaprodi',
-                        'role' => 'pimpinan',
-                        'required' => true,
-                    ],
-                    [
-                        'step' => 'dosen_approval',
-                        'label' => 'Persetujuan Dosen',
-                        'role' => 'dosen',
+                        'step'     => 'dosen_approval',
+                        'label'    => 'Konfirmasi Dosen',
+                        'role'     => 'dosen',
                         'required' => true,
                     ],
                 ],
             ],
+
+            // ─── Bimbingan ────────────────────────────────────────────
             [
                 'module_key' => 'bimbingan',
-                'label' => 'Approval Bimbingan',
-                'steps' => [
+                'label'      => 'Approval Bimbingan',
+                'steps'      => [
                     [
-                        'step' => 'pembimbing_review',
-                        'label' => 'Review Pembimbing',
-                        'role' => 'dosen',
+                        'step'     => 'pembimbing_review',
+                        'label'    => 'Review Pembimbing',
+                        'role'     => 'dosen',
                         'required' => true,
                     ],
                 ],
             ],
+
+            // ─── Ujian ────────────────────────────────────────────────
             [
                 'module_key' => 'ujian',
-                'label' => 'Approval Ujian',
-                'steps' => [
+                'label'      => 'Approval Ujian',
+                'steps'      => [
                     [
-                        'step' => 'verified_admin',
-                        'label' => 'Verifikasi Admin',
-                        'role' => 'admin',
-                        'required' => true,
+                        'step'     => 'verified_admin',
+                        'label'    => 'Verifikasi Admin',
+                        'role'     => 'admin',
+                        'required' => false,
                     ],
                     [
-                        'step' => 'kaprodi_approval',
-                        'label' => 'Persetujuan Kaprodi',
-                        'role' => 'pimpinan',
+                        'step'     => 'kaprodi_approval',
+                        'label'    => 'Persetujuan Kaprodi',
+                        'role'     => 'k.prodi',
                         'required' => true,
                     ],
                 ],
             ],
+
+            // ─── Penilaian ────────────────────────────────────────────
             [
                 'module_key' => 'penilaian',
-                'label' => 'Approval Penilaian',
-                'steps' => [
+                'label'      => 'Approval Penilaian',
+                'steps'      => [
                     [
-                        'step' => 'penguji_input',
-                        'label' => 'Input Nilai Penguji',
-                        'role' => 'dosen',
+                        'step'     => 'penguji_input',
+                        'label'    => 'Input Nilai Penguji',
+                        'role'     => 'dosen',
                         'required' => true,
                     ],
                     [
-                        'step' => 'kaprodi_approval',
-                        'label' => 'Persetujuan Kaprodi',
-                        'role' => 'pimpinan',
+                        'step'     => 'kaprodi_approval',
+                        'label'    => 'Persetujuan Kaprodi',
+                        'role'     => 'k.prodi',
                         'required' => true,
                     ],
                 ],
@@ -112,9 +118,9 @@ class ApprovalConfigSeeder extends Seeder
             ApprovalConfig::updateOrCreate(
                 ['module_key' => $config['module_key']],
                 [
-                    'label' => $config['label'],
-                    'steps' => $config['steps'],
-                    'is_active' => true,
+                    'label'      => $config['label'],
+                    'steps'      => $config['steps'],
+                    'is_active'  => true,
                     'updated_by' => $adminId,
                 ]
             );

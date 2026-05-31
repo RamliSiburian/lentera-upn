@@ -4,27 +4,60 @@ import { router, usePage } from '@inertiajs/react';
 import { Modal, SearchInput, Button, Input, Select, PageHeader, FlashMessage, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, Badge, Avatar, EmptyState, StatCard } from '@/Components/UI';
 
 interface User { id: string; name: string; email: string; }
-interface Mahasiswa { id: string; nim: string; program_studi: string; angkatan: number; no_hp: string; status: string; user: User; }
-interface Props { mahasiswa: Mahasiswa[]; }
+interface Prodi { id: string; kode: string; nama: string; jenjang: string; }
+interface Mahasiswa {
+    id: string; nim: string; prodi_id: string | null; angkatan: number;
+    no_hp: string; status: string; user: User; prodi: Prodi | null;
+}
+interface Props { mahasiswa: Mahasiswa[]; prodis: Prodi[]; }
 
-export default function MahasiswaIndex({ mahasiswa }: Props) {
+export default function MahasiswaIndex({ mahasiswa, prodis }: Props) {
   const { flash } = usePage().props as any;
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [form, setForm] = useState({ name: '', email: '', nim: '', program_studi: '', angkatan: new Date().getFullYear(), no_hp: '', password: '', status: 'aktif' });
+  const [form, setForm] = useState({
+    name: '', email: '', nim: '', prodi_id: '',
+    angkatan: new Date().getFullYear(), no_hp: '', password: '', status: 'aktif'
+  });
 
-  const openCreate = () => { setEditMode(false); setSelectedId(null); setForm({ name: '', email: '', nim: '', program_studi: '', angkatan: new Date().getFullYear(), no_hp: '', password: '', status: 'aktif' }); setShowModal(true); };
-  const openEdit = (m: Mahasiswa) => { setEditMode(true); setSelectedId(m.id); setForm({ name: m.user.name, email: m.user.email, nim: m.nim, program_studi: m.program_studi, angkatan: m.angkatan, no_hp: m.no_hp || '', password: '', status: m.status }); setShowModal(true); };
+  const openCreate = () => {
+    setEditMode(false);
+    setSelectedId(null);
+    setForm({ name: '', email: '', nim: '', prodi_id: prodis[0]?.id || '', angkatan: new Date().getFullYear(), no_hp: '', password: '', status: 'aktif' });
+    setShowModal(true);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (editMode && selectedId) { router.put(`/admin/mahasiswa/${selectedId}`, form, { onSuccess: () => setShowModal(false) }); } else { router.post('/admin/mahasiswa', form, { onSuccess: () => setShowModal(false) }); } };
-  const handleDelete = (id: string) => { if (confirm('Yakin ingin menghapus mahasiswa ini?')) router.delete(`/admin/mahasiswa/${id}`); };
+  const openEdit = (m: Mahasiswa) => {
+    setEditMode(true);
+    setSelectedId(m.id);
+    setForm({ name: m.user.name, email: m.user.email, nim: m.nim, prodi_id: m.prodi_id || '', angkatan: m.angkatan, no_hp: m.no_hp || '', password: '', status: m.status });
+    setShowModal(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editMode && selectedId) {
+      router.put(`/admin/mahasiswa/${selectedId}`, form, { onSuccess: () => setShowModal(false) });
+    } else {
+      router.post('/admin/mahasiswa', form, { onSuccess: () => setShowModal(false) });
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Yakin ingin menghapus mahasiswa ini?')) router.delete(`/admin/mahasiswa/${id}`);
+  };
 
   const filtered = useMemo(() => {
     return mahasiswa.filter(m => {
-      const matchSearch = m.user.name.toLowerCase().includes(search.toLowerCase()) || m.nim.toLowerCase().includes(search.toLowerCase()) || m.user.email.toLowerCase().includes(search.toLowerCase());
+      const prodiNama = m.prodi ? `${m.prodi.jenjang}. ${m.prodi.nama}` : '';
+      const matchSearch =
+        m.user.name.toLowerCase().includes(search.toLowerCase()) ||
+        m.nim.toLowerCase().includes(search.toLowerCase()) ||
+        m.user.email.toLowerCase().includes(search.toLowerCase()) ||
+        prodiNama.toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === 'all' || m.status === statusFilter;
       return matchSearch && matchStatus;
     });
@@ -41,7 +74,7 @@ export default function MahasiswaIndex({ mahasiswa }: Props) {
 
   return (
     <AppLayout title="Data Mahasiswa">
-      <PageHeader 
+      <PageHeader
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Mahasiswa' }]}
         actions={<Button onClick={openCreate} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>Tambah Mahasiswa</Button>}
       />
@@ -58,7 +91,7 @@ export default function MahasiswaIndex({ mahasiswa }: Props) {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="Cari nama, NIM, atau email..." /></div>
+        <div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="Cari nama, NIM, email, atau prodi..." /></div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none">
           <option value="all">Semua Status</option>
           <option value="aktif">Aktif</option>
@@ -95,9 +128,22 @@ export default function MahasiswaIndex({ mahasiswa }: Props) {
                 </div>
               </TableCell>
               <TableCell><span className="font-mono text-gray-600 bg-gray-50 px-2 py-1 rounded-lg text-xs">{m.nim}</span></TableCell>
-              <TableCell className="text-gray-600">{m.program_studi}</TableCell>
+              <TableCell>
+                {m.prodi ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${{
+                      S1: 'bg-emerald-50 text-emerald-700',
+                      D3: 'bg-blue-50 text-blue-700',
+                      S2: 'bg-purple-50 text-purple-700',
+                    }[m.prodi.jenjang] || 'bg-gray-50 text-gray-600'}`}>{m.prodi.jenjang}</span>
+                    <span className="text-sm text-gray-600">{m.prodi.nama}</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400 text-xs italic">Belum diatur</span>
+                )}
+              </TableCell>
               <TableCell className="text-gray-600">{m.angkatan}</TableCell>
-              <TableCell><Badge color={statusBadge(m.status)} dot>{statusLabel(m.status)}</Badge></TableCell>
+              <TableCell><Badge color={statusBadge(m.status) as any} dot>{statusLabel(m.status)}</Badge></TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <button onClick={() => openEdit(m)} className="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Edit">
@@ -117,7 +163,7 @@ export default function MahasiswaIndex({ mahasiswa }: Props) {
         <div className="mt-4 text-sm text-gray-400 text-right">Menampilkan {filtered.length} dari {mahasiswa.length} mahasiswa</div>
       )}
 
-      {/* Modal */}
+      {/* Modal Tambah/Edit */}
       <Modal show={showModal} onClose={() => setShowModal(false)} title={editMode ? 'Edit Mahasiswa' : 'Tambah Mahasiswa Baru'} maxWidth="max-w-xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Nama Lengkap" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Masukkan nama lengkap" required />
@@ -125,12 +171,29 @@ export default function MahasiswaIndex({ mahasiswa }: Props) {
             <Input label="NIM" value={form.nim} onChange={e => setForm({ ...form, nim: e.target.value })} placeholder="Nomor Induk Mahasiswa" required />
             <Input label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Program Studi" value={form.program_studi} onChange={e => setForm({ ...form, program_studi: e.target.value })} placeholder="Nama program studi" required />
-            <Input label="Angkatan" type="number" value={form.angkatan} onChange={e => setForm({ ...form, angkatan: parseInt(e.target.value) })} required />
+
+          {/* Program Studi Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Program Studi</label>
+            <select
+              value={form.prodi_id}
+              onChange={e => setForm({ ...form, prodi_id: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:bg-white transition-all duration-200 outline-none"
+              required
+            >
+              <option value="">-- Pilih Program Studi --</option>
+              {prodis.map(p => (
+                <option key={p.id} value={p.id}>{p.jenjang}. {p.nama}</option>
+              ))}
+            </select>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
+            <Input label="Angkatan" type="number" value={form.angkatan} onChange={e => setForm({ ...form, angkatan: parseInt(e.target.value) })} required />
             <Input label="No HP" value={form.no_hp} onChange={e => setForm({ ...form, no_hp: e.target.value })} placeholder="08xxxxxxxxxx" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             {editMode ? (
               <Select label="Status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                 <option value="aktif">Aktif</option>
@@ -139,9 +202,10 @@ export default function MahasiswaIndex({ mahasiswa }: Props) {
                 <option value="lulus">Lulus</option>
               </Select>
             ) : (
-              <Input label="Password" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimal 8 karakter" required={!editMode} />
+              <Input label="Password" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimal 6 karakter" required={!editMode} />
             )}
           </div>
+
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             <Button variant="secondary" onClick={() => setShowModal(false)}>Batal</Button>
             <Button type="submit" icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}>{editMode ? 'Update' : 'Simpan'}</Button>

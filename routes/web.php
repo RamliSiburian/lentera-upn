@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\KonsentrasiController;
 use App\Http\Controllers\Admin\RuanganController;
 use App\Http\Controllers\Admin\TahapanController;
 use App\Http\Controllers\Admin\ApprovalConfigController;
+use App\Http\Controllers\Admin\ProdiController;
 use App\Http\Controllers\Admin\JudulController as AdminJudulController;
 use App\Http\Controllers\Admin\UjianController as AdminUjianController;
 use App\Http\Controllers\Mahasiswa\JudulController as MhsJudulController;
@@ -49,12 +50,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('ruangan', RuanganController::class)->except(['create', 'show', 'edit']);
         Route::resource('tahapan', TahapanController::class)->except(['create', 'show', 'edit']);
         Route::resource('approval', ApprovalConfigController::class)->except(['create', 'show', 'edit']);
+        Route::resource('prodi', ProdiController::class)->except(['create', 'show', 'edit']);
 
         // Admin Judul & Pembimbing verification
         Route::get('/judul', [AdminJudulController::class, 'index'])->name('admin.judul');
         Route::post('/judul/{id}/verify', [AdminJudulController::class, 'verify'])->name('admin.judul.verify');
         Route::post('/judul/{id}/reject', [AdminJudulController::class, 'reject'])->name('admin.judul.reject');
         Route::post('/pembimbing/{pembimbingId}/verify', [AdminJudulController::class, 'verifyPembimbing'])->name('admin.pembimbing.verify');
+        Route::post('/pembimbing/{pembimbingId}/reject', [AdminJudulController::class, 'rejectPembimbing'])->name('admin.pembimbing.reject');
 
         // Admin Ujian management
         Route::get('/ujian', [AdminUjianController::class, 'index'])->name('admin.ujian');
