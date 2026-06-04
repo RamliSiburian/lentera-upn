@@ -16,6 +16,7 @@ use App\Http\Controllers\Mahasiswa\BimbinganController as MhsBimbinganController
 use App\Http\Controllers\Mahasiswa\UjianController as MhsUjianController;
 use App\Http\Controllers\Kaprodi\JudulController as KaprodiJudulController;
 use App\Http\Controllers\Kaprodi\UjianController as KaprodiUjianController;
+use App\Http\Controllers\Kaprodi\NilaiController as KaprodiNilaiController;
 use App\Http\Controllers\Dosen\BimbinganController as DosenBimbinganController;
 use App\Http\Controllers\Dosen\UjianController as DosenUjianController;
 use App\Http\Controllers\Dosen\PenilaianController as DosenPenilaianController;
@@ -87,7 +88,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/ujian', [KaprodiUjianController::class, 'index'])->name('kaprodi.ujian');
         Route::post('/ujian/{id}/approve', [KaprodiUjianController::class, 'approveUjian'])->name('kaprodi.ujian.approve');
         Route::post('/ujian/{id}/penilaian', [KaprodiUjianController::class, 'approvePenilaian'])->name('kaprodi.ujian.penilaian');
-        Route::get('/nilai', fn () => inertia('Dashboard'))->name('kaprodi.nilai');
+        Route::get('/nilai', [KaprodiNilaiController::class, 'index'])->name('kaprodi.nilai');
+        Route::post('/nilai/{id}/approve', [KaprodiNilaiController::class, 'approve'])->name('kaprodi.nilai.approve');
         Route::get('/laporan', [LaporanController::class, 'kaprodi'])->name('kaprodi.laporan');
         Route::get('/laporan/pdf', [LaporanController::class, 'exportPdf'])->name('kaprodi.laporan.pdf');
     });

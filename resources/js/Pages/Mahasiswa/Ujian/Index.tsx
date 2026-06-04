@@ -4,7 +4,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Modal, Button, Select, PageHeader, FlashMessage, Badge, EmptyState, Card, StatCard } from '@/Components/UI';
 
 interface Tahapan { id: string; nama_tahapan: string; kode: string; min_bab_acc: number; }
-interface Eligibility { eligible: boolean; min_bab: number; current_bab: number; has_submitted: boolean; has_approved: boolean; has_pending: boolean; }
+interface Eligibility { eligible: boolean; min_bab: number | null; prereq_name: string | null; is_prereq_approved: boolean; current_bab: number; has_submitted: boolean; has_approved: boolean; has_pending: boolean; }
 interface User { name: string; }
 interface Mahasiswa { id: string; nim: string; user: User; }
 interface DosenData { id: string; nama: string; user: User; }
@@ -16,9 +16,9 @@ interface PengajuanUjian {
     id: string; status: string; keterangan: string | null; submitted_at: string;
     tahapan: Tahapan; mahasiswa: Mahasiswa; penguji: Penguji[]; jadwal: Jadwal | null; penilaian: Penilaian[];
 }
-interface Props { pengajuanUjian: PengajuanUjian[]; tahapanUjian: Tahapan[]; eligibility: Record<string, Eligibility>; accBabCount: number; [key: string]: any; }
+interface Props { pengajuanUjian: PengajuanUjian[]; tahapanUjian: Tahapan[]; eligibility: Record<string, Eligibility>; accBabCount: number; mahasiswaStatus?: string; [key: string]: any; }
 
-export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBabCount }: Props) {
+export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBabCount, mahasiswaStatus = 'aktif' }: Props) {
     const { flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
     const form = useForm({ tahapan_id: '', keterangan: '' });
@@ -34,9 +34,27 @@ export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBa
         <AppLayout title="Pengajuan Ujian">
             <PageHeader 
                 breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Ujian' }]}
-                actions={<Button onClick={() => setShowForm(true)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>Ajukan Ujian</Button>}
+                actions={mahasiswaStatus !== 'lulus' && <Button onClick={() => setShowForm(true)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>Ajukan Ujian</Button>}
             />
             <FlashMessage message={flash?.success} />
+
+            {/* ── Graduation Success Banner ── */}
+            {mahasiswaStatus === 'lulus' && (
+                <div
+                    className="flex items-start gap-4 p-5 rounded-2xl mb-6 shadow-sm border"
+                    style={{ background: 'rgba(34,197,94,0.06)', color: '#15803d', borderColor: 'rgba(34,197,94,0.20)' }}
+                >
+                    <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-base text-gray-900 leading-snug mb-0.5">Selamat! Anda telah dinyatakan Lulus</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed font-normal">Seluruh tahapan bimbingan dan ujian skripsi telah selesai dilaksanakan serta disetujui secara resmi oleh Kaprodi.</p>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} label="Total Pengajuan" value={pengajuanUjian.length} color="from-blue-500 to-indigo-600" />
@@ -53,7 +71,15 @@ export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBa
                         {tahapanUjian.map(t => {
                             const e = eligibility[t.id];
                             const disabled = !e?.eligible;
-                            return <option key={t.id} value={t.id} disabled={disabled}>{t.nama_tahapan}{disabled ? ` (Min. ${e?.min_bab} bab)` : ''}</option>;
+                            let labelSuffix = '';
+                            if (disabled) {
+                                if (e?.has_pending || e?.has_approved) {
+                                    labelSuffix = ' (Sudah diajukan/disetujui)';
+                                } else if (!e?.is_prereq_approved) {
+                                    labelSuffix = ` (Harus menyelesaikan ${e?.prereq_name || `Bab ${e?.min_bab}`})`;
+                                }
+                            }
+                            return <option key={t.id} value={t.id} disabled={disabled}>{t.nama_tahapan}{labelSuffix}</option>;
                         })}
                     </Select>
                     <div>
@@ -69,7 +95,7 @@ export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBa
 
             {/* List */}
             {pengajuanUjian.length === 0 ? (
-                <Card><EmptyState icon={<svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} title="Belum ada pengajuan" description="Ajukan ujian sempro, semhas, atau sidang" action={<Button onClick={() => setShowForm(true)}>Ajukan Ujian</Button>} /></Card>
+                <Card><EmptyState icon={<svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} title="Belum ada pengajuan" description="Ajukan ujian sempro, semhas, atau sidang" action={mahasiswaStatus !== 'lulus' && <Button onClick={() => setShowForm(true)}>Ajukan Ujian</Button>} /></Card>
             ) : (
                 <div className="space-y-4">
                     {pengajuanUjian.map(u => (

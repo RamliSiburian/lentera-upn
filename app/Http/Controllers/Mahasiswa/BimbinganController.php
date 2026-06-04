@@ -88,7 +88,7 @@ class BimbinganController extends Controller
         // Determine next tipe & canCreate
         $nextTipe = 'bimbingan';
         $canCreate = false;
-        if ($judul && $judul->pembimbing->count() > 0) {
+        if ($mahasiswa->status !== 'lulus' && $judul && $judul->pembimbing->count() > 0) {
             $lastBimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -124,12 +124,17 @@ class BimbinganController extends Controller
             'approvedTahapanIds' => $approvedTahapanIds, // ← baru: tahapan yang sudah ACC
             'canCreateBimbingan' => $canCreate,
             'nextTipe'           => $nextTipe,
+            'mahasiswaStatus'    => $mahasiswa->status,
         ]);
     }
 
     public function store(Request $request)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus dan tidak dapat membuat bimbingan baru.');
+        }
 
         $validated = $request->validate([
             'tahapan_config_id' => 'required|uuid|exists:tahapan_config,id',

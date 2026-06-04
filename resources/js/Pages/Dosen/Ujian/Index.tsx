@@ -14,6 +14,8 @@ interface Props { jadwalUjian: PengajuanUjian[]; [key: string]: any; }
 export default function Index({ jadwalUjian = [] }: Props) {
     const statusColor = (s: string) => ({ submitted: 'blue', reviewed: 'yellow', approved: 'green', rejected: 'red', selesai: 'purple' }[s] || 'gray');
     const statusLabel = (s: string) => ({ submitted: 'Diajukan', reviewed: 'Diproses', approved: 'Disetujui', rejected: 'Ditolak', selesai: 'Selesai' }[s] || s);
+    console.log({jadwalUjian});
+    
 
     return (
         <AppLayout title="Jadwal Ujian">

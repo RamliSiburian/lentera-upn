@@ -10,7 +10,7 @@ interface Komentar { id: string; komentar: string; created_at: string; user: { n
 interface Bimbingan { id: string; tipe: string; status: string; catatan_mhs: string | null; versi: number; created_at: string; tahapan_config: TahapanConfig; files: BimbinganFile[]; approvals: Approval[]; komentar: Komentar[]; }
 interface PembimbingData { id: string; urutan: number; dosen: { id: string; nama: string; nidn: string }; }
 interface JudulData { id: string; judul: string; pembimbing: PembimbingData[]; }
-interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList: TahapanConfig[]; approvedTahapanIds: string[]; canCreateBimbingan: boolean; nextTipe: string; [key: string]: any; }
+interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList: TahapanConfig[]; approvedTahapanIds: string[]; canCreateBimbingan: boolean; nextTipe: string; mahasiswaStatus?: string; [key: string]: any; }
 
 // ─── FIK UPNVJ Color Tokens ──────────────────────────────────────────────────
 // Primary orange : #E8500A
@@ -20,7 +20,7 @@ interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList:
 // Surface        : #F5F3EE
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function Index({ bimbingans, judul, tahapanList, approvedTahapanIds = [], canCreateBimbingan, nextTipe }: Props) {    
+export default function Index({ bimbingans, judul, tahapanList, approvedTahapanIds = [], canCreateBimbingan, nextTipe, mahasiswaStatus = 'aktif' }: Props) {    
     const { flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
     const [activeBimbingan, setActiveBimbingan] = useState<string | null>(null);
@@ -112,6 +112,24 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                     </button>
                 )}
             </div>
+
+            {/* ── Graduation Success Banner ── */}
+            {mahasiswaStatus === 'lulus' && (
+                <div
+                    className="flex items-start gap-4 p-5 rounded-2xl mb-6 shadow-sm border"
+                    style={{ background: 'rgba(34,197,94,0.06)', color: '#15803d', borderColor: 'rgba(34,197,94,0.20)' }}
+                >
+                    <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-base text-gray-900 leading-snug mb-0.5">Selamat! Anda telah dinyatakan Lulus</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed font-normal">Seluruh tahapan bimbingan dan ujian skripsi telah selesai dilaksanakan serta disetujui secara resmi oleh Kaprodi.</p>
+                    </div>
+                </div>
+            )}
 
             {/* ── Flash Message ── */}
             {flash?.success && (

@@ -25,13 +25,21 @@ class UjianController extends Controller
             ->orderBy('urutan')
             ->get();
 
-        // Count ACC'd bimbingan bab
-        $accBabCount = BimbinganAcc::whereHas('bimbingan', function ($q) use ($mahasiswa) {
-            $q->where('mahasiswa_id', $mahasiswa->id);
-        })->where('bimbingan_acc.status', 'approved')
-          ->join('bimbingan', 'bimbingan_acc.bimbingan_id', '=', 'bimbingan.id')
-          ->where('bimbingan.tipe', 'bimbingan')
-          ->count();
+        // Get all approved bimbingan stages' urutan
+        $approvedBimbinganUrutan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+            ->where('bimbingan.status', 'approved')
+            ->join('tahapan_config', 'bimbingan.tahapan_id', '=', 'tahapan_config.id')
+            ->where('tahapan_config.tipe', 'bimbingan')
+            ->pluck('tahapan_config.urutan')
+            ->toArray();
+
+        $accBabCount = count($approvedBimbinganUrutan);
+
+        // Get all active bimbingan stages mapped by urutan
+        $bimbinganStages = TahapanConfig::where('tipe', 'bimbingan')
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('urutan');
 
         // Get submitted ujian
         $pengajuanUjian = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
@@ -42,16 +50,25 @@ class UjianController extends Controller
         // Check eligibility for each tahapan
         $eligibility = [];
         foreach ($tahapanUjian as $tahapan) {
-            $minBab = $tahapan->min_bab_acc ?? 0;
+            $minBab = $tahapan->min_bab_acc;
+            $prereqStage = $minBab ? ($bimbinganStages[$minBab] ?? null) : null;
+            $prereqName = $prereqStage ? $prereqStage->nama_tahapan : null;
+
+            $isPrereqApproved = !$minBab || in_array($minBab, $approvedBimbinganUrutan);
+
             $hasSubmitted = $pengajuanUjian->where('tahapan_id', $tahapan->id)->count() > 0;
             $hasApproved = $pengajuanUjian->where('tahapan_id', $tahapan->id)
                 ->where('status', 'approved')->count() > 0;
             $hasPending = $pengajuanUjian->where('tahapan_id', $tahapan->id)
                 ->whereIn('status', ['submitted', 'reviewed'])->count() > 0;
 
+            $isLulus = $mahasiswa->status === 'lulus';
+
             $eligibility[$tahapan->id] = [
-                'eligible' => $accBabCount >= $minBab && !$hasApproved && !$hasPending,
+                'eligible' => !$isLulus && $isPrereqApproved && !$hasApproved && !$hasPending,
                 'min_bab' => $minBab,
+                'prereq_name' => $prereqName,
+                'is_prereq_approved' => $isPrereqApproved,
                 'current_bab' => $accBabCount,
                 'has_submitted' => $hasSubmitted,
                 'has_approved' => $hasApproved,
@@ -64,6 +81,7 @@ class UjianController extends Controller
             'tahapanUjian' => $tahapanUjian,
             'eligibility' => $eligibility,
             'accBabCount' => $accBabCount,
+            'mahasiswaStatus' => $mahasiswa->status,
         ]);
     }
 
@@ -77,6 +95,10 @@ class UjianController extends Controller
         $user = Auth::user();
         $mahasiswa = Mahasiswa::where('user_id', $user->id)->firstOrFail();
 
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus dan tidak dapat mengajukan ujian baru.');
+        }
+
         // Check if already submitted
         $exists = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
             ->where('tahapan_id', $request->tahapan_id)
@@ -85,6 +107,29 @@ class UjianController extends Controller
 
         if ($exists) {
             return back()->with('error', 'Anda sudah mengajukan ujian ini dan masih diproses.');
+        }
+
+        $tahapan = TahapanConfig::findOrFail($request->tahapan_id);
+        if ($tahapan->tipe !== 'ujian') {
+            return back()->with('error', 'Tahapan ini bukan tahapan ujian.');
+        }
+
+        $minBab = $tahapan->min_bab_acc;
+        if ($minBab) {
+            $isPrereqApproved = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+                ->where('bimbingan.status', 'approved')
+                ->whereHas('tahapanConfig', function ($q) use ($minBab) {
+                    $q->where('tipe', 'bimbingan')->where('urutan', $minBab);
+                })
+                ->exists();
+
+            if (!$isPrereqApproved) {
+                $prereqTahapan = TahapanConfig::where('tipe', 'bimbingan')
+                    ->where('urutan', $minBab)
+                    ->first();
+                $prereqName = $prereqTahapan ? $prereqTahapan->nama_tahapan : "Bab {$minBab}";
+                return back()->with('error', "Anda harus menyelesaikan {$prereqName} terlebih dahulu.");
+            }
         }
 
         PengajuanUjian::create([

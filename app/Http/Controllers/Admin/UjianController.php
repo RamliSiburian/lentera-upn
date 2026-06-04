@@ -7,6 +7,7 @@ use App\Models\Dosen;
 use App\Models\JadwalUjian;
 use App\Models\Mahasiswa;
 use App\Models\PengajuanUjian;
+use App\Models\PenilaianApproval;
 use App\Models\PengujiUjian;
 use App\Models\Ruangan;
 use Illuminate\Http\Request;
@@ -51,6 +52,10 @@ class UjianController extends Controller
                 ])->values()
                 : collect();
 
+            // Kunci: jika penilaian sudah di-approve kaprodi (status selesai atau ada approval)
+            $u->nilai_locked = $u->status === 'selesai'
+                || PenilaianApproval::where('pengajuan_ujian_id', $u->id)->exists();
+
             return $u;
         });
 
@@ -71,6 +76,13 @@ class UjianController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function assignPenguji(Request $request, $id)
     {
+        $pengajuan = PengajuanUjian::findOrFail($id);
+
+        // ── LOCK: tidak bisa ubah penguji jika penilaian sudah di-approve kaprodi ──
+        if ($pengajuan->status === 'selesai' || PenilaianApproval::where('pengajuan_ujian_id', $id)->exists()) {
+            return back()->with('error', 'Penguji tidak dapat diubah karena penilaian sudah disetujui oleh Kaprodi.');
+        }
+
         $request->validate([
             'dosen_ids'   => 'required|array|min:1',
             'dosen_ids.*' => 'required|exists:dosen,id',
@@ -115,6 +127,11 @@ class UjianController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function setJadwal(Request $request, $id)
     {
+        // ── LOCK: tidak bisa ubah jadwal jika penilaian sudah di-approve kaprodi ──
+        if (PenilaianApproval::where('pengajuan_ujian_id', $id)->exists()) {
+            return back()->with('error', 'Jadwal tidak dapat diubah karena penilaian sudah disetujui oleh Kaprodi.');
+        }
+
         $request->validate([
             'ruangan_id'  => 'required|exists:ruangan,id',
             'tanggal'     => 'required|date',

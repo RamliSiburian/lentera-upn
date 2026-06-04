@@ -146,17 +146,19 @@ class ApprovalService
      * @param array  $logData
      * @param string $logTable
      * @param string $foreignKeyName
+     * @param string|null $stepOverride
      */
-    public function processApproval($model, string $moduleKey, string $action, array $logData, string $logTable, string $foreignKeyName): void
+    public function processApproval($model, string $moduleKey, string $action, array $logData, string $logTable, string $foreignKeyName, ?string $stepOverride = null): void
     {
-        DB::transaction(function () use ($model, $moduleKey, $action, $logData, $logTable, $foreignKeyName) {
-            $currentStep = $model->status;
+        DB::transaction(function () use ($model, $moduleKey, $action, $logData, $logTable, $foreignKeyName, $stepOverride) {
+            $currentStatus = $model->status;
+            $stepToLog = $stepOverride ?? $currentStatus;
 
             // Insert log
             $logEntry = array_merge([
                 'id'             => (string) \Illuminate\Support\Str::uuid(),
                 $foreignKeyName  => $model->id,
-                'step'           => $currentStep,
+                'step'           => $stepToLog,
                 'action'         => $action,
                 'created_at'     => now(),
                 'updated_at'     => now(),
@@ -167,9 +169,15 @@ class ApprovalService
             if ($action === 'rejected') {
                 $model->update(['status' => 'rejected']);
             } else {
-                // getNextStep sudah otomatis skip optional steps
-                $nextStep = $this->getNextStep($moduleKey, $currentStep);
-                $model->update(['status' => $nextStep ?? 'approved']);
+                // Jika step yang disetujui (stepToLog) berbeda dengan status model saat ini
+                // (misal status model sudah kaprodi_approval karena optional, tapi admin baru klik verifikasi),
+                // maka jangan ubah status model karena statusnya sudah melampaui step tersebut.
+                if ($stepOverride && $stepOverride !== $currentStatus) {
+                    // Do not update status
+                } else {
+                    $nextStep = $this->getNextStep($moduleKey, $currentStatus);
+                    $model->update(['status' => $nextStep ?? 'approved']);
+                }
             }
         });
     }

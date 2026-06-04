@@ -29,6 +29,8 @@ class JudulController extends Controller
         $judulSteps      = $this->getAdminAllowedSteps($approvalService, 'judul_pengajuan');
         $pembimbingSteps = $this->getAdminAllowedSteps($approvalService, 'pembimbing');
 
+        $isJudulAdminOptional = !$approvalService->isStepRequired('judul_pengajuan', 'verified_admin');
+        
         // Judul yang butuh verifikasi admin
         $juduls = JudulPengajuan::with([
             'konsentrasi',
@@ -36,28 +38,97 @@ class JudulController extends Controller
             'mahasiswa.prodi',
             'pembimbing.dosen.user',
         ])
-        ->whereIn('status', $judulSteps)
+        ->where(function($query) use ($judulSteps, $isJudulAdminOptional) {
+            $query->whereIn('status', $judulSteps);
+            
+            if ($isJudulAdminOptional) {
+                $query->orWhere(function($q) {
+                    $q->where('status', 'kaprodi_approval')
+                      ->whereNotExists(function($subQuery) {
+                          $subQuery->select(\DB::raw(1))
+                                   ->from('judul_approval_log')
+                                   ->whereRaw('judul_approval_log.judul_id = judul_pengajuan.id')
+                                   ->where('step', 'verified_admin')
+                                   ->where('action', 'approved');
+                      });
+                });
+            }
+        })
         ->orderBy('created_at', 'desc')
         ->get();
 
+        // Check logs for each pembimbing relation to know if verified by admin
+        $juduls->each(function($judul) {
+            $judul->pembimbing->each(function($p) {
+                $p->has_verified_admin_log = \DB::table('pembimbing_approval_log')
+                    ->where('pembimbing_id', $p->id)
+                    ->where('step', 'verified_admin')
+                    ->where('action', 'approved')
+                    ->exists();
+            });
+        });
+
+        $isPembimbingAdminOptional = !$approvalService->isStepRequired('pembimbing', 'verified_admin');
+
         // Pembimbing yang butuh verifikasi admin (tampilkan di halaman yang sama)
         $pembimbings = Pembimbing::with(['mahasiswa.user', 'mahasiswa.prodi', 'dosen.user'])
-            ->whereIn('status', $pembimbingSteps)
+            ->where(function($query) use ($pembimbingSteps, $isPembimbingAdminOptional) {
+                $query->whereIn('status', $pembimbingSteps);
+                
+                if ($isPembimbingAdminOptional) {
+                    $query->orWhere(function($q) {
+                        $q->where('status', 'kaprodi_approval')
+                          ->whereNotExists(function($subQuery) {
+                              $subQuery->select(\DB::raw(1))
+                                       ->from('pembimbing_approval_log')
+                                       ->whereRaw('pembimbing_approval_log.pembimbing_id = pembimbing.id')
+                                       ->where('step', 'verified_admin')
+                                       ->where('action', 'approved');
+                          });
+                    });
+                }
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $pendingJudulSteps = $judulSteps;
+        if ($isJudulAdminOptional) {
+            $pendingJudulSteps[] = 'kaprodi_approval';
+        }
+
+        $pendingPembimbingSteps = $pembimbingSteps;
+        if ($isPembimbingAdminOptional) {
+            $pendingPembimbingSteps[] = 'kaprodi_approval';
+        }
+
         return Inertia::render('Admin/Judul/Index', [
             'juduls'          => $juduls,
-            'pendingSteps'    => $judulSteps,
-            'pembimbings'     => $pembimbings,          // ← baru: daftar pembimbing pending
-            'pembimbingSteps' => $pembimbingSteps,
+            'pendingSteps'    => $pendingJudulSteps,
+            'pembimbings'     => $pembimbings,
+            'pembimbingSteps' => $pendingPembimbingSteps,
         ]);
     }
 
     public function verify($id, ApprovalService $approvalService)
     {
         $judulSteps = $this->getAdminAllowedSteps($approvalService, 'judul_pengajuan');
-        $judul = JudulPengajuan::whereIn('status', $judulSteps)->findOrFail($id);
+        $isJudulAdminOptional = !$approvalService->isStepRequired('judul_pengajuan', 'verified_admin');
+
+        $judul = JudulPengajuan::where(function($query) use ($judulSteps, $isJudulAdminOptional) {
+            $query->whereIn('status', $judulSteps);
+            if ($isJudulAdminOptional) {
+                $query->orWhere(function($q) {
+                    $q->where('status', 'kaprodi_approval')
+                      ->whereNotExists(function($subQuery) {
+                          $subQuery->select(\DB::raw(1))
+                                   ->from('judul_approval_log')
+                                   ->whereRaw('judul_approval_log.judul_id = judul_pengajuan.id')
+                                   ->where('step', 'verified_admin')
+                                   ->where('action', 'approved');
+                      });
+                });
+            }
+        })->findOrFail($id);
 
         $approvalService->processApproval(
             $judul,
@@ -65,7 +136,8 @@ class JudulController extends Controller
             'approved',
             ['actor_id' => Auth::id()],
             'judul_approval_log',
-            'judul_id'
+            'judul_id',
+            'verified_admin'
         );
 
         return redirect()->route('admin.judul')->with('success', 'Judul berhasil diverifikasi.');
@@ -75,7 +147,23 @@ class JudulController extends Controller
     {
         $validated  = $request->validate(['catatan' => 'required|string']);
         $judulSteps = $this->getAdminAllowedSteps($approvalService, 'judul_pengajuan');
-        $judul      = JudulPengajuan::whereIn('status', $judulSteps)->findOrFail($id);
+        $isJudulAdminOptional = !$approvalService->isStepRequired('judul_pengajuan', 'verified_admin');
+
+        $judul = JudulPengajuan::where(function($query) use ($judulSteps, $isJudulAdminOptional) {
+            $query->whereIn('status', $judulSteps);
+            if ($isJudulAdminOptional) {
+                $query->orWhere(function($q) {
+                    $q->where('status', 'kaprodi_approval')
+                      ->whereNotExists(function($subQuery) {
+                          $subQuery->select(\DB::raw(1))
+                                   ->from('judul_approval_log')
+                                   ->whereRaw('judul_approval_log.judul_id = judul_pengajuan.id')
+                                   ->where('step', 'verified_admin')
+                                   ->where('action', 'approved');
+                      });
+                });
+            }
+        })->findOrFail($id);
 
         $judul->keterangan_tolak = $validated['catatan'];
 
@@ -88,7 +176,8 @@ class JudulController extends Controller
                 'catatan'  => $validated['catatan'],
             ],
             'judul_approval_log',
-            'judul_id'
+            'judul_id',
+            'verified_admin'
         );
 
         return redirect()->route('admin.judul')->with('success', 'Judul ditolak.');
@@ -98,7 +187,23 @@ class JudulController extends Controller
     public function verifyPembimbing($id, ApprovalService $approvalService)
     {
         $pembimbingSteps = $this->getAdminAllowedSteps($approvalService, 'pembimbing');
-        $pembimbing      = Pembimbing::whereIn('status', $pembimbingSteps)->findOrFail($id);
+        $isPembimbingAdminOptional = !$approvalService->isStepRequired('pembimbing', 'verified_admin');
+
+        $pembimbing = Pembimbing::where(function($query) use ($pembimbingSteps, $isPembimbingAdminOptional) {
+            $query->whereIn('status', $pembimbingSteps);
+            if ($isPembimbingAdminOptional) {
+                $query->orWhere(function($q) {
+                    $q->where('status', 'kaprodi_approval')
+                      ->whereNotExists(function($subQuery) {
+                          $subQuery->select(\DB::raw(1))
+                                   ->from('pembimbing_approval_log')
+                                   ->whereRaw('pembimbing_approval_log.pembimbing_id = pembimbing.id')
+                                   ->where('step', 'verified_admin')
+                                   ->where('action', 'approved');
+                      });
+                });
+            }
+        })->findOrFail($id);
 
         $approvalService->processApproval(
             $pembimbing,
@@ -106,7 +211,8 @@ class JudulController extends Controller
             'approved',
             ['actor_id' => Auth::id()],
             'pembimbing_approval_log',
-            'pembimbing_id'
+            'pembimbing_id',
+            'verified_admin'
         );
 
         return redirect()->route('admin.judul')->with('success', 'Pembimbing diverifikasi.');
@@ -116,7 +222,23 @@ class JudulController extends Controller
     {
         $validated       = $request->validate(['catatan' => 'required|string']);
         $pembimbingSteps = $this->getAdminAllowedSteps($approvalService, 'pembimbing');
-        $pembimbing      = Pembimbing::whereIn('status', $pembimbingSteps)->findOrFail($id);
+        $isPembimbingAdminOptional = !$approvalService->isStepRequired('pembimbing', 'verified_admin');
+
+        $pembimbing = Pembimbing::where(function($query) use ($pembimbingSteps, $isPembimbingAdminOptional) {
+            $query->whereIn('status', $pembimbingSteps);
+            if ($isPembimbingAdminOptional) {
+                $query->orWhere(function($q) {
+                    $q->where('status', 'kaprodi_approval')
+                      ->whereNotExists(function($subQuery) {
+                          $subQuery->select(\DB::raw(1))
+                                   ->from('pembimbing_approval_log')
+                                   ->whereRaw('pembimbing_approval_log.pembimbing_id = pembimbing.id')
+                                   ->where('step', 'verified_admin')
+                                   ->where('action', 'approved');
+                      });
+                });
+            }
+        })->findOrFail($id);
 
         $approvalService->processApproval(
             $pembimbing,
@@ -127,7 +249,8 @@ class JudulController extends Controller
                 'catatan'  => $validated['catatan'],
             ],
             'pembimbing_approval_log',
-            'pembimbing_id'
+            'pembimbing_id',
+            'verified_admin'
         );
 
         $pembimbing->update(['keterangan_tolak' => $validated['catatan']]);

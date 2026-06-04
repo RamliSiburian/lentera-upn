@@ -11,7 +11,7 @@ interface PengujiItem { id: string; urutan: number; dosen: Dosen; }
 interface MahasiswaUser { name: string; }
 interface Mahasiswa { id: string; nim: string; nama: string; user: MahasiswaUser; }
 interface PengajuanUjian { id: string; status: string; keterangan: string | null; tahapan: Tahapan; jadwal: Jadwal | null; mahasiswa: Mahasiswa; penguji: PengujiItem[]; }
-interface PengujiAssignment { id: string; pengajuanUjian: PengajuanUjian; penilaian: Penilaian | null; }
+interface PengujiAssignment { id: string; pengajuanUjian: PengajuanUjian; penilaian: Penilaian | null; is_nilai_locked: boolean; }
 interface Props { pengujiAssignments: PengujiAssignment[]; [key: string]: any; }
 
 export default function Index({ pengujiAssignments }: Props) {
@@ -80,6 +80,13 @@ export default function Index({ pengujiAssignments }: Props) {
                         style={{ background: 'rgba(34,197,94,0.10)', color: '#15803d', border: '1px solid rgba(34,197,94,0.20)' }}>
                         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                         {flash.success}
+                    </div>
+                )}
+                {flash?.error && (
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl mb-5 text-sm font-medium"
+                        style={{ background: 'rgba(239,68,68,0.09)', color: '#b91c1c', border: '1px solid rgba(239,68,68,0.18)' }}>
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        {flash.error}
                     </div>
                 )}
 
@@ -213,14 +220,25 @@ export default function Index({ pengujiAssignments }: Props) {
 
                                             {/* Action */}
                                             <div className="mt-4 flex justify-end">
-                                                <button onClick={() => openForm(pa)}
-                                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-                                                    style={{ background: 'linear-gradient(135deg, #E8500A, #F0820A)' }}>
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                    {pa.penilaian ? 'Update Penilaian' : 'Input Penilaian'}
-                                                </button>
+                                                {pa.is_nilai_locked ? (
+                                                    // ── LOCKED: sudah di-approve kaprodi ──
+                                                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                                                        style={{ background: 'rgba(34,197,94,0.08)', color: '#15803d', border: '1px solid rgba(34,197,94,0.20)' }}>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                        </svg>
+                                                        Penilaian dikunci — sudah disetujui Kaprodi
+                                                    </div>
+                                                ) : (
+                                                    <button onClick={() => openForm(pa)}
+                                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+                                                        style={{ background: 'linear-gradient(135deg, #E8500A, #F0820A)' }}>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        {pa.penilaian ? 'Update Penilaian' : 'Input Penilaian'}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     )}

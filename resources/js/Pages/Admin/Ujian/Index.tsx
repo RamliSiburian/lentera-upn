@@ -16,6 +16,7 @@ interface PengajuanUjian {
     id: string; status: string; keterangan: string | null; submitted_at: string;
     mahasiswa: Mahasiswa; tahapan: Tahapan; penguji: Penguji[]; jadwal: Jadwal | null; penilaian: Penilaian[];
     prev_penguji?: Penguji[]; // penguji dari ujian sebelumnya (jika ada)
+    nilai_locked?: boolean;   // dikunci setelah kaprodi approve penilaian
 }
 
 interface Props { pengajuanUjian: PengajuanUjian[]; dosenList: DosenData[]; ruanganList: Ruangan[]; [key: string]: any; }
@@ -28,7 +29,6 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
     const [pengujiModal, setPengujiModal] = useState(false);
     const [jadwalModal, setJadwalModal] = useState(false);
     const [selectedUjian, setSelectedUjian] = useState<string | null>(null);
-    const [selectedDosen, setSelectedDosen] = useState<string[]>([]);
 
     const pengujiForm = useForm({ dosen_ids: [] as string[] });
     const jadwalForm = useForm({ ruangan_id: '', tanggal: '', jam_mulai: '', jam_selesai: '', catatan: '' });
@@ -46,7 +46,7 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
             prevInfo = u.prev_penguji;
         }
 
-        setSelectedDosen(selected);
+        pengujiForm.setData('dosen_ids', selected);
         setPrevPengujiInfo(prevInfo);
         setPengujiModal(true);
     };
@@ -60,14 +60,25 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
 
     const handleAssignPenguji = () => {
         if (!selectedUjian) return;
-        pengujiForm.setData('dosen_ids', selectedDosen);
-        pengujiForm.post(route('admin.ujian.penguji', selectedUjian), { onSuccess: () => { setPengujiModal(false); setSelectedUjian(null); setSelectedDosen([]); } });
+        pengujiForm.post(route('admin.ujian.penguji', selectedUjian), { 
+            onSuccess: () => { 
+                setPengujiModal(false); 
+                setSelectedUjian(null); 
+                pengujiForm.reset();
+            } 
+        });
     };
     const handleSetJadwal = () => {
         if (!selectedUjian) return;
         jadwalForm.post(route('admin.ujian.jadwal', selectedUjian), { onSuccess: () => { setJadwalModal(false); setSelectedUjian(null); } });
     };
-    const toggleDosen = (id: string) => setSelectedDosen(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
+    const toggleDosen = (id: string) => {
+        pengujiForm.setData('dosen_ids', 
+            pengujiForm.data.dosen_ids.includes(id)
+                ? pengujiForm.data.dosen_ids.filter(d => d !== id)
+                : [...pengujiForm.data.dosen_ids, id]
+        );
+    };
 
     const statusColor = (s: string) => ({ submitted: 'blue', reviewed: 'yellow', approved: 'green', rejected: 'red', selesai: 'purple' }[s] || 'gray');
     const statusLabel = (s: string) => ({ submitted: 'Diajukan', reviewed: 'Diproses', approved: 'Disetujui', rejected: 'Ditolak', selesai: 'Selesai' }[s] || s);
@@ -86,6 +97,15 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                 breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Ujian' }]}
             />
             <FlashMessage message={flash?.success} />
+            {flash?.error && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl mb-5 text-sm font-medium"
+                    style={{ background: 'rgba(239,68,68,0.09)', color: '#b91c1c', border: '1px solid rgba(239,68,68,0.18)' }}>
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {flash.error}
+                </div>
+            )}
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} label="Total Pengajuan" value={counts.all} color="from-blue-500 to-indigo-600" />
@@ -171,12 +191,25 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                                 )}
 
                                 <div className="mt-4 pt-4 border-t border-gray-50 flex items-center gap-2">
-                                    <Button variant="primary" size="sm" onClick={() => openPengujiModal(u)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}>
-                                        {u.penguji?.length > 0 ? 'Ubah Penguji' : 'Assign Penguji'}
-                                    </Button>
-                                    <Button variant="secondary" size="sm" onClick={() => openJadwalModal(u)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}>
-                                        {u.jadwal ? 'Ubah Jadwal' : 'Set Jadwal'}
-                                    </Button>
+                                    {u.nilai_locked ? (
+                                        // ── LOCKED: penilaian sudah di-approve kaprodi ──
+                                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                                            style={{ background: 'rgba(34,197,94,0.08)', color: '#15803d', border: '1px solid rgba(34,197,94,0.20)' }}>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            Dikunci — penilaian sudah disetujui Kaprodi
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Button variant="primary" size="sm" onClick={() => openPengujiModal(u)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}>
+                                                {u.penguji?.length > 0 ? 'Ubah Penguji' : 'Assign Penguji'}
+                                            </Button>
+                                            <Button variant="secondary" size="sm" onClick={() => openJadwalModal(u)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}>
+                                                {u.jadwal ? 'Ubah Jadwal' : 'Set Jadwal'}
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -208,6 +241,11 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                     )}
 
                     <p className="text-sm text-gray-500">Pilih dosen yang akan bertugas sebagai penguji.</p>
+                    {pengujiForm.errors.dosen_ids && (
+                        <div className="text-xs text-red-600 font-medium px-1">
+                            {pengujiForm.errors.dosen_ids}
+                        </div>
+                    )}
                     <div className="max-h-64 overflow-y-auto space-y-2">
                         {(() => {
                             const selectedUjianData = pengajuanUjian.find(u => u.id === selectedUjian);
@@ -215,21 +253,21 @@ export default function Index({ pengajuanUjian, dosenList, ruanganList }: Props)
                             const availableDosenList = dosenList.filter(d => !pembimbingIds.includes(d.id));
                             
                             return availableDosenList.map(d => (
-                                <label key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedDosen.includes(d.id) ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
-                                    <input type="checkbox" checked={selectedDosen.includes(d.id)} onChange={() => toggleDosen(d.id)} className="sr-only" />
+                                <label key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${pengujiForm.data.dosen_ids.includes(d.id) ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
+                                    <input type="checkbox" checked={pengujiForm.data.dosen_ids.includes(d.id)} onChange={() => toggleDosen(d.id)} className="sr-only" />
                                     <Avatar name={d.user?.name || d.nama} size="sm" />
                                     <div className="flex-1">
                                         <p className="text-sm font-medium text-gray-800">{d.user?.name || d.nama}</p>
                                         <p className="text-xs text-gray-400">{d.nidn}</p>
                                     </div>
-                                    {selectedDosen.includes(d.id) && <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                    {pengujiForm.data.dosen_ids.includes(d.id) && <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                 </label>
                             ));
                         })()}
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                         <Button variant="secondary" onClick={() => { setPengujiModal(false); setPrevPengujiInfo([]); }}>Batal</Button>
-                        <Button onClick={handleAssignPenguji} disabled={selectedDosen.length === 0 || pengujiForm.processing}>Simpan Penguji ({selectedDosen.length})</Button>
+                        <Button onClick={handleAssignPenguji} disabled={pengujiForm.data.dosen_ids.length === 0 || pengujiForm.processing}>Simpan Penguji ({pengujiForm.data.dosen_ids.length})</Button>
                     </div>
                 </div>
             </Modal>

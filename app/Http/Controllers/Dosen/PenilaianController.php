@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dosen;
 use App\Http\Controllers\Controller;
 use App\Models\Dosen;
 use App\Models\PengujiUjian;
+use App\Models\PenilaianApproval;
 use App\Models\PenilaianUjian;
 use App\Models\PengajuanUjian;
 use Illuminate\Http\Request;
@@ -63,13 +64,15 @@ class PenilaianController extends Controller
                         }),
                     ] : null,
                     'penilaian' => $pa->penilaian ? [
-                        'id' => $pa->penilaian->id,
-                        'komponen' => $pa->penilaian->komponen,
-                        'nilai' => $pa->penilaian->nilai,
-                        'catatan' => $pa->penilaian->catatan,
+                        'id'           => $pa->penilaian->id,
+                        'komponen'     => $pa->penilaian->komponen,
+                        'nilai'        => $pa->penilaian->nilai,
+                        'catatan'      => $pa->penilaian->catatan,
                         'status_hasil' => $pa->penilaian->status_hasil,
-                        'dinilai_at' => $pa->penilaian->dinilai_at,
+                        'dinilai_at'   => $pa->penilaian->dinilai_at,
                     ] : null,
+                    // Kunci input jika penilaian sudah di-approve kaprodi
+                    'is_nilai_locked' => PenilaianApproval::where('pengajuan_ujian_id', $pa->pengajuanUjian?->id)->exists(),
                 ];
             });
 
@@ -81,12 +84,18 @@ class PenilaianController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'penguji_id' => 'required|exists:penguji,id',
-            'pengajuan_ujian_id' => 'required|exists:pengajuan_ujian,id',
-            'status_hasil' => 'required|in:lulus,revisi,ngulang',
-            'nilai' => 'required|numeric|min:0|max:100',
-            'catatan' => 'nullable|string',
+            'penguji_id'          => 'required|exists:penguji,id',
+            'pengajuan_ujian_id'  => 'required|exists:pengajuan_ujian,id',
+            'status_hasil'        => 'required|in:lulus,revisi,ngulang',
+            'nilai'               => 'required|numeric|min:0|max:100',
+            'catatan'             => 'nullable|string',
         ]);
+
+        // ── LOCK: cek apakah penilaian sudah di-approve kaprodi ──
+        $alreadyApproved = PenilaianApproval::where('pengajuan_ujian_id', $request->pengajuan_ujian_id)->exists();
+        if ($alreadyApproved) {
+            return back()->with('error', 'Penilaian sudah disetujui oleh Kaprodi dan tidak dapat diubah lagi.');
+        }
 
         $user = Auth::user();
         $dosen = Dosen::where('user_id', $user->id)->firstOrFail();

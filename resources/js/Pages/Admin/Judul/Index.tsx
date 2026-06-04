@@ -44,10 +44,18 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
     } as Record<string, string>)[s] ?? s;
     const pembimbingStatusColor = (s: string) => ({
         requested: 'yellow', verified_admin: 'blue', approved: 'green', rejected: 'red',
+        kaprodi_approval: 'yellow',
     }[s] || 'gray');
     const pembimbingStatusLabel = (s: string) => ({
         requested: 'Diajukan', verified_admin: 'Diverifikasi', approved: 'Diterima', rejected: 'Ditolak',
+        kaprodi_approval: 'Menunggu Kaprodi',
     }[s] || s);
+    const canVerifyPembimbing = (p: any) => {
+        if (p.status === 'approved' || p.status === 'rejected') return false;
+        if (p.status === 'verified_admin' || p.status === 'requested') return true;
+        if (p.status === 'kaprodi_approval' && !p.has_verified_admin_log) return true;
+        return false;
+    };
 
     const getMhsName = (j: Judul) => j.mahasiswa?.user?.name || '-';
 
@@ -148,7 +156,7 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Badge color={pembimbingStatusColor(p.status)} dot>{pembimbingStatusLabel(p.status)}</Badge>
-                                                        {p.status === 'requested' && (
+                                                        {canVerifyPembimbing(p) && (
                                                             <Button size="sm" variant="success" onClick={() => handleVerifyPembimbing(p.id)}>Verifikasi</Button>
                                                         )}
                                                     </div>
