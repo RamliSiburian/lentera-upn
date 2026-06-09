@@ -191,4 +191,74 @@ class LaporanController extends Controller
         $namaMhs = str_replace(' ', '_', $mahasiswa->user->name ?? 'mahasiswa');
         return $pdf->download('Laporan_Bimbingan_' . $namaMhs . '.pdf');
     }
+
+    public function exportRekapPdf()
+    {
+        $mahasiswaAll = Mahasiswa::with([
+            'user',
+            'judulPengajuan' => fn($q) => $q->whereNotIn('status', ['rejected'])
+                ->orderBy('created_at', 'desc')
+                ->with(['konsentrasi', 'pembimbing.dosen.user']),
+            'bimbingan'      => fn($q) => $q->orderBy('created_at', 'desc')->with('tahapanConfig'),
+        ])->get();
+
+        // Map ke format ringkas
+        $mahasiswaList = $mahasiswaAll->map(function ($m) {
+            $judul      = $m->judulPengajuan->first();
+            $bimbingan  = $m->bimbingan->first();
+
+            // Ambil ujian terakhir langsung via query
+            $ujian = PengajuanUjian::where('mahasiswa_id', $m->id)
+                ->with('tahapan')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $pembimbing = $judul?->pembimbing
+                ->map(fn($p) => $p->dosen?->user?->name ?? '-')
+                ->implode(' / ');
+
+            $judulStatusLabel = [
+                'draft'            => 'Draft',
+                'submitted'        => 'Diajukan',
+                'verified_admin'   => 'Diverifikasi',
+                'approved_kaprodi' => 'Disetujui',
+                'rejected'         => 'Ditolak',
+            ];
+
+            return [
+                'nim'               => $m->nim ?? '-',
+                'nama'              => $m->user->name ?? '-',
+                'judul'             => $judul?->judul ?? '-',
+                'status_judul'      => $judulStatusLabel[$judul?->status ?? ''] ?? ($judul?->status ?? '-'),
+                'pembimbing'        => $pembimbing ?: '-',
+                'total_bimbingan'   => $m->bimbingan->count(),
+                'tahapan_bimbingan' => $bimbingan?->tahapanConfig?->nama ?? '-',
+                'status_bimbingan'  => match($bimbingan?->status) {
+                    'submitted'  => 'Diajukan',
+                    'in_review'  => 'Ditinjau',
+                    'approved'   => 'Disetujui',
+                    'rejected'   => 'Revisi',
+                    default      => $bimbingan?->status ?? '-',
+                },
+                'jenis_ujian'  => $ujian?->tahapan?->nama ?? '-',
+                'status_ujian' => match($ujian?->status) {
+                    'submitted'       => 'Diajukan',
+                    'reviewed'        => 'Dijadwalkan',
+                    'menunggu_penguji'=> 'Tunggu Penguji',
+                    'lulus'           => 'Lulus',
+                    'revisi'          => 'Revisi',
+                    'gagal'           => 'Gagal',
+                    default           => $ujian?->status ?? '-',
+                },
+            ];
+        });
+
+        $pdf = Pdf::loadView('pdf.laporan-rekap', [
+            'mahasiswaList' => $mahasiswaList,
+            'tanggalCetak'  => now()->format('d F Y H:i'),
+            'totalMhs'      => $mahasiswaList->count(),
+        ])->setPaper('A4', 'landscape');
+
+        return $pdf->download('Rekap_Progress_Mahasiswa_' . now()->format('Ymd') . '.pdf');
+    }
 }

@@ -7,7 +7,7 @@ interface Props {
 }
 
 interface NavItem {
-  label: string;
+  label: string; d
   href: string;
   icon: React.ReactNode;
   name: string;
@@ -268,9 +268,8 @@ export default function AppLayout({ children, title }: Props) {
 
         {/* Logo */}
         <div
-          className={`flex items-center h-[60px] border-b flex-shrink-0 ${
-            sidebarOpen ? 'px-4 gap-3' : 'px-3 justify-center'
-          }`}
+          className={`flex items-center h-[60px] border-b flex-shrink-0 ${sidebarOpen ? 'px-4 gap-3' : 'px-3 justify-center'
+            }`}
           style={{ borderColor: 'rgba(255,255,255,0.07)' }}
         >
           {/* Logo UPNVJ */}

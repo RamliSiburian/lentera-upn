@@ -42,8 +42,14 @@ export default function AdminLaporan({ stats, judulByStatus, recentBimbingan, ma
   };
 
   const handleExportPdf = () => {
-    const url = filterMhs ? `${prefix}/laporan/pdf?mahasiswa_id=${filterMhs}` : `${prefix}/laporan/pdf`;
-    window.open(url, '_blank');
+    // Export detail hanya untuk mahasiswa yang sudah difilter
+    if (!filterMhs) return;
+    window.open(`${prefix}/laporan/pdf?mahasiswa_id=${filterMhs}`, '_blank');
+  };
+
+  const handleExportRekap = () => {
+    // Export rekap semua mahasiswa
+    window.open(`${prefix}/laporan/rekap`, '_blank');
   };
 
   const handleReset = () => {
@@ -81,13 +87,33 @@ export default function AdminLaporan({ stats, judulByStatus, recentBimbingan, ma
               Reset
             </button>
           )}
-          <button onClick={handleExportPdf}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export PDF
-          </button>
+
+          {/* Tombol export berubah sesuai kondisi filter */}
+          {!filterMhs ? (
+            // Belum difilter → Export Rekap semua mahasiswa
+            <button
+              onClick={handleExportRekap}
+              title="Export rekap progress semua mahasiswa dalam format tabel ringkas"
+              className="px-4 py-2 text-sm font-medium text-white rounded-xl flex items-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Rekap Semua
+            </button>
+          ) : (
+            // Sudah difilter → Export Laporan Detail mahasiswa terpilih
+            <button
+              onClick={handleExportPdf}
+              title="Export laporan detail bimbingan mahasiswa yang dipilih"
+              className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Laporan Detail
+            </button>
+          )}
+
         </div>
       </Card>
 

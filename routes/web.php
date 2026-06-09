@@ -68,6 +68,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Admin Laporan
         Route::get('/laporan', [LaporanController::class, 'admin'])->name('admin.laporan');
         Route::get('/laporan/pdf', [LaporanController::class, 'exportPdf'])->name('admin.laporan.pdf');
+        Route::get('/laporan/rekap', [LaporanController::class, 'exportRekapPdf'])->name('admin.laporan.rekap');
     });
 
     // Pimpinan Routes
@@ -75,6 +76,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/statistik', fn () => inertia('Dashboard'))->name('pimpinan.statistik');
         Route::get('/laporan', [LaporanController::class, 'pimpinan'])->name('pimpinan.laporan');
         Route::get('/laporan/pdf', [LaporanController::class, 'exportPdf'])->name('pimpinan.laporan.pdf');
+        Route::get('/laporan/rekap', [LaporanController::class, 'exportRekapPdf'])->name('pimpinan.laporan.rekap');
     });
 
     // Kaprodi Routes
@@ -92,6 +94,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/nilai/{id}/approve', [KaprodiNilaiController::class, 'approve'])->name('kaprodi.nilai.approve');
         Route::get('/laporan', [LaporanController::class, 'kaprodi'])->name('kaprodi.laporan');
         Route::get('/laporan/pdf', [LaporanController::class, 'exportPdf'])->name('kaprodi.laporan.pdf');
+        Route::get('/laporan/rekap', [LaporanController::class, 'exportRekapPdf'])->name('kaprodi.laporan.rekap');
     });
 
     // Dosen Routes
