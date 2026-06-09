@@ -33,7 +33,7 @@ class UjianController extends Controller
 
     public function approveUjian(Request $request, $id)
     {
-        $pengajuan = PengajuanUjian::findOrFail($id);
+        $pengajuan = PengajuanUjian::with('penguji')->findOrFail($id);
         $user = Auth::user();
 
         $request->validate([
@@ -41,8 +41,19 @@ class UjianController extends Controller
             'catatan' => 'nullable|string',
         ]);
 
+        // Validasi: jika approve, semua penguji harus sudah 'accepted'
+        if ($request->status === 'approved') {
+            $belumAcc = $pengajuan->penguji()
+                ->where('penguji_acc', '!=', 'accepted')
+                ->count();
+
+            if ($belumAcc > 0) {
+                return back()->with('error', 'Belum semua dosen penguji mengkonfirmasi penugasan. Tunggu konfirmasi dari semua penguji terlebih dahulu.');
+            }
+        }
+
         $pengajuan->update([
-            'status' => $request->status,
+            'status'      => $request->status,
             'reviewed_by' => $user->id,
             'reviewed_at' => now(),
         ]);

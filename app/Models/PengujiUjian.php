@@ -21,11 +21,15 @@ class PengujiUjian extends Model
         'urutan',
         'assigned_by',
         'assigned_at',
+        'penguji_acc',
+        'penguji_acc_at',
+        'penguji_acc_catatan',
     ];
 
     protected $casts = [
         'urutan' => 'integer',
         'assigned_at' => 'datetime',
+        'penguji_acc_at' => 'datetime',
     ];
 
     protected static function boot()

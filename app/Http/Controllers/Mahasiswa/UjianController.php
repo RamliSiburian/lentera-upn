@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mahasiswa;
 use App\Http\Controllers\Controller;
 use App\Models\Mahasiswa;
 use App\Models\PengajuanUjian;
+use App\Models\PenilaianApproval;
 use App\Models\TahapanConfig;
 use App\Models\Bimbingan;
 use App\Models\BimbinganAcc;
@@ -14,12 +15,28 @@ use Inertia\Inertia;
 
 class UjianController extends Controller
 {
+    /**
+     * Cek apakah ada pengajuan ujian yang nilai/statusnya belum di-acc Kaprodi.
+     */
+    private function hasBlockingUjian($mahasiswaId): bool
+    {
+        return PengajuanUjian::where('mahasiswa_id', $mahasiswaId)
+            ->where(function ($q) {
+                $q->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])
+                  ->orWhere(function ($q2) {
+                      $q2->where('status', 'approved')
+                         ->whereDoesntHave('approvals', fn($q3) => $q3->where('status', 'approved'));
+                  });
+            })
+            ->exists();
+    }
+
     public function index()
     {
         $user = Auth::user();
         $mahasiswa = Mahasiswa::where('user_id', $user->id)->firstOrFail();
 
-        // Get eligible tahapan (ujian type) based on completed bimbingan
+        // Get eligible tahapan (ujian type)
         $tahapanUjian = TahapanConfig::where('tipe', 'ujian')
             ->where('is_active', true)
             ->orderBy('urutan')
@@ -47,6 +64,21 @@ class UjianController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Cek apakah ada ujian yang memblokir pengajuan baru
+        $hasBlocking = $this->hasBlockingUjian($mahasiswa->id);
+        $blockingUjian = null;
+        if ($hasBlocking) {
+            $blockingUjian = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
+                ->with('tahapan')
+                ->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])
+                ->orWhere(function ($q) use ($mahasiswa) {
+                    $q->where('mahasiswa_id', $mahasiswa->id)
+                      ->where('status', 'approved')
+                      ->whereDoesntHave('approvals', fn($q2) => $q2->where('status', 'approved'));
+                })
+                ->first();
+        }
+
         // Check eligibility for each tahapan
         $eligibility = [];
         foreach ($tahapanUjian as $tahapan) {
@@ -60,12 +92,15 @@ class UjianController extends Controller
             $hasApproved = $pengajuanUjian->where('tahapan_id', $tahapan->id)
                 ->where('status', 'approved')->count() > 0;
             $hasPending = $pengajuanUjian->where('tahapan_id', $tahapan->id)
-                ->whereIn('status', ['submitted', 'reviewed'])->count() > 0;
+                ->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])->count() > 0;
 
             $isLulus = $mahasiswa->status === 'lulus';
 
+            // Cek apakah ada ujian sebelumnya (tahapan lain) yang belum di-acc kaprodi
+            $isBlockedByPrevUjian = $hasBlocking && !$hasPending; // jika ujian ini sendiri yang pending, tidak diblokir oleh ini
+
             $eligibility[$tahapan->id] = [
-                'eligible' => !$isLulus && $isPrereqApproved && !$hasApproved && !$hasPending,
+                'eligible' => !$isLulus && $isPrereqApproved && !$hasApproved && !$hasPending && !$isBlockedByPrevUjian,
                 'min_bab' => $minBab,
                 'prereq_name' => $prereqName,
                 'is_prereq_approved' => $isPrereqApproved,
@@ -73,15 +108,21 @@ class UjianController extends Controller
                 'has_submitted' => $hasSubmitted,
                 'has_approved' => $hasApproved,
                 'has_pending' => $hasPending,
+                'blocked_by_ujian' => $isBlockedByPrevUjian,
             ];
         }
 
         return Inertia::render('Mahasiswa/Ujian/Index', [
-            'pengajuanUjian' => $pengajuanUjian,
-            'tahapanUjian' => $tahapanUjian,
-            'eligibility' => $eligibility,
-            'accBabCount' => $accBabCount,
-            'mahasiswaStatus' => $mahasiswa->status,
+            'pengajuanUjian'   => $pengajuanUjian,
+            'tahapanUjian'     => $tahapanUjian,
+            'eligibility'      => $eligibility,
+            'accBabCount'      => $accBabCount,
+            'mahasiswaStatus'  => $mahasiswa->status,
+            'hasBlockingUjian' => $hasBlocking,
+            'blockingUjianInfo' => $blockingUjian ? [
+                'tahapan' => $blockingUjian->tahapan?->nama_tahapan ?? 'Ujian',
+                'status'  => $blockingUjian->status,
+            ] : null,
         ]);
     }
 
@@ -99,10 +140,23 @@ class UjianController extends Controller
             return back()->with('error', 'Anda sudah lulus dan tidak dapat mengajukan ujian baru.');
         }
 
+        // Blokir jika ada ujian lain yang masih pending / nilai belum di-acc
+        if ($this->hasBlockingUjian($mahasiswa->id)) {
+            // Cek apakah yang blocking bukan ujian yang sama dengan yang diajukan
+            $currentTahapanBlocking = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
+                ->where('tahapan_id', $request->tahapan_id)
+                ->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])
+                ->exists();
+
+            if (!$currentTahapanBlocking) {
+                return back()->with('error', 'Tidak dapat mengajukan ujian baru. Ada pengajuan ujian atau nilai ujian yang belum disetujui oleh Kaprodi.');
+            }
+        }
+
         // Check if already submitted
         $exists = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
             ->where('tahapan_id', $request->tahapan_id)
-            ->whereIn('status', ['submitted', 'reviewed'])
+            ->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])
             ->exists();
 
         if ($exists) {
@@ -134,9 +188,9 @@ class UjianController extends Controller
 
         PengajuanUjian::create([
             'mahasiswa_id' => $mahasiswa->id,
-            'tahapan_id' => $request->tahapan_id,
-            'status' => 'submitted',
-            'keterangan' => $request->keterangan,
+            'tahapan_id'   => $request->tahapan_id,
+            'status'       => 'submitted',
+            'keterangan'   => $request->keterangan,
             'submitted_at' => now(),
         ]);
 

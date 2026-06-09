@@ -220,9 +220,23 @@ class BimbinganController extends Controller
 
         $acc->update($updateData);
 
-        $bimbingan->update(['status' => 'rejected']);
+        // Hitung ulang status bimbingan berdasarkan semua approval
+        // Jika ada yang rejected → bimbingan rejected
+        // Jika semua approved → bimbingan approved
+        // Selain itu → in_review
+        $bimbinganAcls = BimbinganAcc::where('bimbingan_id', $id)->get();
+        $hasRejected = $bimbinganAcls->where('status', 'rejected')->count() > 0;
+        $allApproved = $bimbinganAcls->where('status', '!=', 'approved')->count() === 0;
 
-        return redirect()->route('dosen.bimbingan')->with('success', 'Revisi diminta.');
+        if ($allApproved) {
+            $bimbingan->update(['status' => 'approved']);
+        } elseif ($hasRejected) {
+            $bimbingan->update(['status' => 'rejected']);
+        } else {
+            $bimbingan->update(['status' => 'in_review']);
+        }
+
+        return redirect()->route('dosen.bimbingan')->with('success', 'Revisi diminta. Mahasiswa dapat mengupload perbaikan di bimbingan yang sama.');
     }
 
     public function rejectBimbingan(Request $request, $id)

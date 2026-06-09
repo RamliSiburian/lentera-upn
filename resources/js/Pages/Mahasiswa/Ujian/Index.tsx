@@ -4,7 +4,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Modal, Button, Select, PageHeader, FlashMessage, Badge, EmptyState, Card, StatCard } from '@/Components/UI';
 
 interface Tahapan { id: string; nama_tahapan: string; kode: string; min_bab_acc: number; }
-interface Eligibility { eligible: boolean; min_bab: number | null; prereq_name: string | null; is_prereq_approved: boolean; current_bab: number; has_submitted: boolean; has_approved: boolean; has_pending: boolean; }
+interface Eligibility { eligible: boolean; min_bab: number | null; prereq_name: string | null; is_prereq_approved: boolean; current_bab: number; has_submitted: boolean; has_approved: boolean; has_pending: boolean; blocked_by_ujian?: boolean; }
 interface User { name: string; }
 interface Mahasiswa { id: string; nim: string; user: User; }
 interface DosenData { id: string; nama: string; user: User; }
@@ -16,9 +16,10 @@ interface PengajuanUjian {
     id: string; status: string; keterangan: string | null; submitted_at: string;
     tahapan: Tahapan; mahasiswa: Mahasiswa; penguji: Penguji[]; jadwal: Jadwal | null; penilaian: Penilaian[];
 }
-interface Props { pengajuanUjian: PengajuanUjian[]; tahapanUjian: Tahapan[]; eligibility: Record<string, Eligibility>; accBabCount: number; mahasiswaStatus?: string; [key: string]: any; }
+interface BlockingInfo { tahapan: string; status: string; }
+interface Props { pengajuanUjian: PengajuanUjian[]; tahapanUjian: Tahapan[]; eligibility: Record<string, Eligibility>; accBabCount: number; mahasiswaStatus?: string; hasBlockingUjian?: boolean; blockingUjianInfo?: BlockingInfo | null; [key: string]: any; }
 
-export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBabCount, mahasiswaStatus = 'aktif' }: Props) {
+export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBabCount, mahasiswaStatus = 'aktif', hasBlockingUjian = false, blockingUjianInfo = null }: Props) {
     const { flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
     const form = useForm({ tahapan_id: '', keterangan: '' });
@@ -34,9 +35,28 @@ export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBa
         <AppLayout title="Pengajuan Ujian">
             <PageHeader 
                 breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Ujian' }]}
-                actions={mahasiswaStatus !== 'lulus' && <Button onClick={() => setShowForm(true)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>Ajukan Ujian</Button>}
+                actions={mahasiswaStatus !== 'lulus' && !hasBlockingUjian && <Button onClick={() => setShowForm(true)} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>Ajukan Ujian</Button>}
             />
             <FlashMessage message={flash?.success} />
+
+            {/* ── Blocking Banner ── */}
+            {hasBlockingUjian && blockingUjianInfo && (
+                <div
+                    className="flex items-start gap-3 p-4 rounded-2xl mb-5"
+                    style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
+                >
+                    <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <p className="text-sm font-semibold text-red-700">Pengajuan ujian baru sementara tidak tersedia</p>
+                        <p className="text-xs text-red-600 mt-0.5">
+                            Pengajuan <strong>{blockingUjianInfo.tahapan}</strong> masih dalam proses (status: {blockingUjianInfo.status}).
+                            Tunggu hingga seluruh proses ujian tersebut selesai disetujui oleh Kaprodi.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* ── Graduation Success Banner ── */}
             {mahasiswaStatus === 'lulus' && (
@@ -75,6 +95,8 @@ export default function Index({ pengajuanUjian, tahapanUjian, eligibility, accBa
                             if (disabled) {
                                 if (e?.has_pending || e?.has_approved) {
                                     labelSuffix = ' (Sudah diajukan/disetujui)';
+                                } else if (e?.blocked_by_ujian) {
+                                    labelSuffix = ' (Ujian sebelumnya belum di-ACC Kaprodi)';
                                 } else if (!e?.is_prereq_approved) {
                                     labelSuffix = ` (Harus menyelesaikan ${e?.prereq_name || `Bab ${e?.min_bab}`})`;
                                 }

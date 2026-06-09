@@ -31,20 +31,19 @@ import '../css/app.css';
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-const appName = import.meta.env.VITE_APP_NAME || 'LENTERA';
 
-const el = typeof window !== 'undefined' ? document.getElementById('app') : null;
-const page = el ? JSON.parse(el.dataset.page) : undefined;
+const appName = 'UPNVJ - Lentera';
 
 createInertiaApp({
   title: (title) => `${title} - ${appName}`,
-  page,
   resolve: (name) => resolvePageComponent(
-    [`./Pages/${name}.tsx`, `./Pages/${name}.jsx`],
+    `./Pages/${name}.tsx`,
     import.meta.glob('./Pages/**/*.{jsx,tsx}')
   ),
   setup({ el, App, props }) {
     createRoot(el).render(<App {...props} />);
   },
+  progress: {
+    color: '#E8500A',
+  },
 });
-

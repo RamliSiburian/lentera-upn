@@ -205,6 +205,21 @@ export default function MahasiswaIndex({ mahasiswa, prodis }: Props) {
               <Input label="Password" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimal 6 karakter" required={!editMode} />
             )}
           </div>
+          {editMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Password Baru <span className="text-xs text-gray-400 font-normal">(opsional)</span>
+              </label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                placeholder="Kosongkan jika tidak ingin mengubah password"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:bg-white transition-all duration-200 outline-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">Isi hanya jika ingin mereset password mahasiswa ini.</p>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             <Button variant="secondary" onClick={() => setShowModal(false)}>Batal</Button>

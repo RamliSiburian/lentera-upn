@@ -90,14 +90,22 @@ class DosenController extends Controller
             'kategori' => 'nullable|string|in:asisten ahli,lektor,lektor kepala,profesor',
             'kuota_bimbingan' => 'required|integer|min:0|max:50',
             'no_hp' => 'nullable|string|max:20',
+            'password' => 'nullable|string|min:6',
             'konsentrasi_ids' => 'nullable|array',
             'konsentrasi_ids.*' => 'exists:konsentrasi,id',
         ]);
 
-        $dosen->user->update([
+        $userUpdate = [
             'name' => $validated['name'],
             'email' => $validated['email'],
-        ]);
+        ];
+
+        // Update password hanya jika diisi
+        if (!empty($validated['password'])) {
+            $userUpdate['password'] = bcrypt($validated['password']);
+        }
+
+        $dosen->user->update($userUpdate);
 
         $dosen->update([
             'nidn' => $validated['nidn'],

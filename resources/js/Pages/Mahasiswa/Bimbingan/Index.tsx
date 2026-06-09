@@ -10,19 +10,21 @@ interface Komentar { id: string; komentar: string; created_at: string; user: { n
 interface Bimbingan { id: string; tipe: string; status: string; catatan_mhs: string | null; versi: number; created_at: string; tahapan_config: TahapanConfig; files: BimbinganFile[]; approvals: Approval[]; komentar: Komentar[]; }
 interface PembimbingData { id: string; urutan: number; dosen: { id: string; nama: string; nidn: string }; }
 interface JudulData { id: string; judul: string; pembimbing: PembimbingData[]; }
-interface Props { bimbingans: Bimbingan[]; judul: JudulData | null; tahapanList: TahapanConfig[]; approvedTahapanIds: string[]; canCreateBimbingan: boolean; nextTipe: string; mahasiswaStatus?: string; [key: string]: any; }
+interface Props {
+    bimbingans: Bimbingan[];
+    judul: JudulData | null;
+    tahapanList: TahapanConfig[];
+    approvedTahapanIds: string[];
+    canCreateBimbingan: boolean;
+    blockReason?: string | null;
+    mahasiswaStatus?: string;
+    [key: string]: any;
+}
 
-// ─── FIK UPNVJ Color Tokens ──────────────────────────────────────────────────
-// Primary orange : #E8500A
-// Orange light   : #F0820A
-// Gold accent    : #FBB726
-// Dark bg        : #1A1A1A
-// Surface        : #F5F3EE
-// ─────────────────────────────────────────────────────────────────────────────
-
-export default function Index({ bimbingans, judul, tahapanList, approvedTahapanIds = [], canCreateBimbingan, nextTipe, mahasiswaStatus = 'aktif' }: Props) {    
+export default function Index({ bimbingans, judul, tahapanList, approvedTahapanIds = [], canCreateBimbingan, blockReason = null, mahasiswaStatus = 'aktif' }: Props) {
     const { flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
+    const [showRevisiForm, setShowRevisiForm] = useState<string | null>(null); // bimbinganId yang sedang direvisi
     const [activeBimbingan, setActiveBimbingan] = useState<string | null>(null);
     const [komentarText, setKomentarText] = useState<Record<string, string>>({});
 
@@ -33,10 +35,23 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
         file: null as File | null,
     });
 
+    const revisiForm = useForm({
+        catatan_mhs: '',
+        file: null as File | null,
+    });
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('mahasiswa.bimbingan.store'), {
             onSuccess: () => { reset(); setShowForm(false); },
+            forceFormData: true,
+        });
+    };
+
+    const handleSubmitRevisi = (e: React.FormEvent, bimbinganId: string) => {
+        e.preventDefault();
+        revisiForm.post(route('mahasiswa.bimbingan.revisi', bimbinganId), {
+            onSuccess: () => { revisiForm.reset(); setShowRevisiForm(null); },
             forceFormData: true,
         });
     };
@@ -53,6 +68,7 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
     const statusStyle = (s: string): { bg: string; text: string; dot: string } => ({
         submitted:            { bg: 'rgba(59,130,246,0.10)',  text: '#1d4ed8', dot: '#3b82f6'  },
         diajukan:             { bg: 'rgba(59,130,246,0.10)',  text: '#1d4ed8', dot: '#3b82f6'  },
+        in_review:            { bg: 'rgba(251,183,38,0.12)',  text: '#92400e', dot: '#FBB726'  },
         acc_pembimbing1:      { bg: 'rgba(251,183,38,0.12)',  text: '#92400e', dot: '#FBB726'  },
         acc_semua_pembimbing: { bg: 'rgba(34,197,94,0.10)',   text: '#15803d', dot: '#22c55e'  },
         approved:             { bg: 'rgba(34,197,94,0.10)',   text: '#15803d', dot: '#22c55e'  },
@@ -64,12 +80,13 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
     const statusLabel = (s: string) => ({
         submitted:            'Menunggu Review',
         diajukan:             'Menunggu Review',
+        in_review:            'Sebagian Disetujui',
         acc_pembimbing1:      'ACC Pembimbing 1',
         acc_semua_pembimbing: 'Selesai',
         approved:             'Selesai',
         revisi:               'Perlu Revisi',
         ditolak:              'Ditolak',
-        rejected:             'Ditolak',
+        rejected:             'Perlu Revisi',
     }[s] || s);
 
     const approvalStyle = (s: string) => ({
@@ -77,8 +94,12 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
         approved: { bg: 'rgba(34,197,94,0.10)',  text: '#15803d', icon: '✓' },
         revisi:   { bg: 'rgba(251,183,38,0.12)', text: '#92400e', icon: '↻' },
         ditolak:  { bg: 'rgba(239,68,68,0.10)',  text: '#b91c1c', icon: '✕' },
-        rejected: { bg: 'rgba(239,68,68,0.10)',  text: '#b91c1c', icon: '✕' },
+        rejected: { bg: 'rgba(239,68,68,0.10)',  text: '#b91c1c', icon: '↻' },
+        pending:  { bg: 'rgba(0,0,0,0.05)',      text: '#777',    icon: '○' },
     }[s] || { bg: 'rgba(0,0,0,0.06)', text: '#777', icon: '○' });
+
+    // Cari bimbingan terakhir yang rejected (butuh revisi)
+    const rejectedBimbingan = bimbingans.find(b => b.status === 'rejected');
 
     return (
         <AppLayout title="Bimbingan Skripsi">
@@ -131,6 +152,22 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                 </div>
             )}
 
+            {/* ── Blocking Banner (ujian pending) ── */}
+            {blockReason && (
+                <div
+                    className="flex items-start gap-3 p-4 rounded-2xl mb-5 shadow-sm"
+                    style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
+                >
+                    <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <p className="text-sm font-semibold text-red-700">Bimbingan baru sementara tidak tersedia</p>
+                        <p className="text-xs text-red-600 mt-0.5">{blockReason}</p>
+                    </div>
+                </div>
+            )}
+
             {/* ── Flash Message ── */}
             {flash?.success && (
                 <div
@@ -141,6 +178,17 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     {flash.success}
+                </div>
+            )}
+            {flash?.error && (
+                <div
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl mb-5 text-sm font-medium"
+                    style={{ background: 'rgba(239,68,68,0.09)', color: '#b91c1c', border: '1px solid rgba(239,68,68,0.18)' }}
+                >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {flash.error}
                 </div>
             )}
 
@@ -172,19 +220,9 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                 </div>
             ) : (
                 <>
-                    {/* ── Form Modal ── */}
-                    <Modal show={showForm} onClose={() => setShowForm(false)} title={nextTipe === 'revisi' ? 'Upload Revisi' : 'Buat Bimbingan Baru'} maxWidth="max-w-lg">
+                    {/* ── Form Modal Bimbingan Baru ── */}
+                    <Modal show={showForm} onClose={() => setShowForm(false)} title="Buat Bimbingan Baru" maxWidth="max-w-lg">
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            {/* Tipe Indicator */}
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: nextTipe === 'revisi' ? 'rgba(251,183,38,0.10)' : 'rgba(232,80,10,0.08)' }}>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${nextTipe === 'revisi' ? 'bg-amber-200 text-amber-800' : 'bg-orange-200 text-orange-800'}`}>
-                                    {nextTipe === 'revisi' ? 'REVISI' : 'BIMBINGAN'}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                    {nextTipe === 'revisi' ? 'Upload perbaikan dari bimbingan sebelumnya' : 'Upload laporan bimbingan baru'}
-                                </span>
-                            </div>
-
                             {/* Tahapan Select */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -219,12 +257,6 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                         );
                                     })}
                                 </select>
-                                <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
-                                    <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Tahapan bertanda ✓ sudah selesai dan tidak bisa dipilih kembali
-                                </p>
                             </div>
 
                             {/* File Upload */}
@@ -290,6 +322,107 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                         </form>
                     </Modal>
 
+                    {/* ── Modal Upload Revisi ── */}
+                    {showRevisiForm && (
+                        <Modal
+                            show={!!showRevisiForm}
+                            onClose={() => { setShowRevisiForm(null); revisiForm.reset(); }}
+                            title="Upload Revisi Bimbingan"
+                            maxWidth="max-w-lg"
+                        >
+                            <form onSubmit={e => handleSubmitRevisi(e, showRevisiForm)} className="space-y-4">
+                                {/* Info Banner */}
+                                <div
+                                    className="flex items-start gap-3 p-3 rounded-xl"
+                                    style={{ background: 'rgba(251,183,38,0.10)', border: '1px solid rgba(251,183,38,0.30)' }}
+                                >
+                                    <svg className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#92400e' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-xs font-semibold" style={{ color: '#92400e' }}>Revisi Bimbingan yang Sama</p>
+                                        <p className="text-xs mt-0.5" style={{ color: '#78350f' }}>
+                                            File revisi akan menggantikan file sebelumnya. Hanya pembimbing yang meminta revisi yang perlu menyetujui kembali.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* File Upload - WAJIB */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                        Upload File Revisi PDF <span className="text-red-500">*</span>
+                                    </label>
+                                    <div
+                                        className="rounded-xl p-6 text-center transition-colors cursor-pointer"
+                                        style={{ border: '2px dashed rgba(251,183,38,0.4)', background: 'rgba(251,183,38,0.04)' }}
+                                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(251,183,38,0.7)')}
+                                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(251,183,38,0.4)')}
+                                    >
+                                        <input
+                                            type="file"
+                                            accept=".pdf"
+                                            onChange={e => revisiForm.setData('file', e.target.files?.[0] || null)}
+                                            className="hidden"
+                                            id="revisi-file-upload"
+                                            required
+                                        />
+                                        <label htmlFor="revisi-file-upload" className="cursor-pointer block">
+                                            <div
+                                                className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3"
+                                                style={{ background: 'rgba(251,183,38,0.15)' }}
+                                            >
+                                                <svg className="w-5 h-5" style={{ color: '#92400e' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-sm font-medium text-gray-600">
+                                                {revisiForm.data.file ? revisiForm.data.file.name : 'Klik untuk upload file revisi PDF'}
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-1">Format PDF, maks 20MB</p>
+                                        </label>
+                                    </div>
+                                    {revisiForm.errors.file && (
+                                        <p className="text-xs text-red-600 mt-1">{revisiForm.errors.file}</p>
+                                    )}
+                                </div>
+
+                                {/* Catatan Revisi */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Catatan Revisi (opsional)</label>
+                                    <textarea
+                                        value={revisiForm.data.catatan_mhs}
+                                        onChange={e => revisiForm.setData('catatan_mhs', e.target.value)}
+                                        rows={3}
+                                        placeholder="Jelaskan perubahan yang Anda buat..."
+                                        className="w-full border rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 outline-none transition-all resize-none"
+                                        style={{ borderColor: 'rgba(0,0,0,0.12)' }}
+                                        onFocus={e => { e.currentTarget.style.borderColor = '#FBB726'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(251,183,38,0.15)'; }}
+                                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                    />
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex justify-end gap-3 pt-4" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowRevisiForm(null); revisiForm.reset(); }}
+                                        className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={revisiForm.processing}
+                                        className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg, #FBB726, #F0820A)' }}
+                                    >
+                                        {revisiForm.processing ? 'Mengupload...' : 'Submit Revisi'}
+                                    </button>
+                                </div>
+                            </form>
+                        </Modal>
+                    )}
+
                     {/* ── Empty State ── */}
                     {bimbingans.length === 0 ? (
                         <div
@@ -306,19 +439,22 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                             </div>
                             <h3 className="font-bold text-gray-800 text-base mb-1">Belum ada bimbingan</h3>
                             <p className="text-sm text-gray-400 mb-5">Mulai bimbingan pertama Anda dengan mengupload laporan</p>
-                            <button
-                                onClick={() => setShowForm(true)}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
-                                style={{ background: 'linear-gradient(135deg, #E8500A, #F0820A)' }}
-                            >
-                                Buat Bimbingan
-                            </button>
+                            {canCreateBimbingan && (
+                                <button
+                                    onClick={() => setShowForm(true)}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+                                    style={{ background: 'linear-gradient(135deg, #E8500A, #F0820A)' }}
+                                >
+                                    Buat Bimbingan
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {bimbingans.map(b => {
                                 const st = statusStyle(b.status);
                                 const isOpen = activeBimbingan === b.id;
+                                const isRejected = b.status === 'rejected';
 
                                 return (
                                     <div
@@ -332,7 +468,7 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                     >
                                         {/* Orange top accent when open */}
                                         {isOpen && (
-                                            <div className="h-[3px]" style={{ background: 'linear-gradient(90deg, #E8500A, #FBB726)' }} />
+                                            <div className="h-[3px]" style={{ background: isRejected ? 'linear-gradient(90deg, #ef4444, #FBB726)' : 'linear-gradient(90deg, #E8500A, #FBB726)' }} />
                                         )}
 
                                         {/* Header */}
@@ -348,12 +484,12 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                                     {/* Version badge */}
                                                     <div
                                                         className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
-                                                        style={b.tipe === 'revisi'
-                                                            ? { background: 'rgba(251,183,38,0.12)', color: '#92400e' }
+                                                        style={isRejected
+                                                            ? { background: 'rgba(239,68,68,0.10)', color: '#b91c1c' }
                                                             : { background: 'rgba(232,80,10,0.10)', color: '#E8500A' }
                                                         }
                                                     >
-                                                        {b.tipe === 'revisi' ? 'R' : 'B'}{b.versi}
+                                                        B{b.versi}
                                                     </div>
                                                     <div>
                                                         <h3 className="font-semibold text-gray-900 text-[14px]">
@@ -375,6 +511,20 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                                         {statusLabel(b.status)}
                                                     </span>
 
+                                                    {/* Tombol Upload Revisi jika rejected */}
+                                                    {isRejected && (
+                                                        <button
+                                                            onClick={e => { e.stopPropagation(); setShowRevisiForm(b.id); }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                                                            style={{ background: 'linear-gradient(135deg, #FBB726, #F0820A)' }}
+                                                        >
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                            </svg>
+                                                            Upload Revisi
+                                                        </button>
+                                                    )}
+
                                                     <svg
                                                         className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
                                                         fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -388,6 +538,24 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                         {/* Expanded Content */}
                                         {isOpen && (
                                             <div className="px-5 pb-5" style={{ borderTop: '1px solid rgba(232,80,10,0.08)' }}>
+
+                                                {/* Alert revisi */}
+                                                {isRejected && (
+                                                    <div
+                                                        className="mt-4 flex items-start gap-3 p-3 rounded-xl"
+                                                        style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)' }}
+                                                    >
+                                                        <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-red-700">Bimbingan ini membutuhkan revisi</p>
+                                                            <p className="text-xs text-red-600 mt-0.5">
+                                                                Lihat catatan dari pembimbing di bawah, lalu klik "Upload Revisi" untuk mengupload perbaikan.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 {/* Files */}
                                                 <div className="mt-4">
@@ -436,8 +604,8 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                                                             {ap.icon}
                                                                         </span>
                                                                         <span className="text-[13px] text-gray-700">
-                                                                            Pembimbing {a.pembimbing.urutan}
-                                                                            <span className="text-gray-400"> · {a.pembimbing.dosen.nama}</span>
+                                                                            Pembimbing {a.pembimbing?.urutan}
+                                                                            <span className="text-gray-400"> · {a.pembimbing?.dosen?.nama}</span>
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
@@ -445,7 +613,7 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                                                             className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
                                                                             style={{ background: ap.bg, color: ap.text }}
                                                                         >
-                                                                            {a.status || 'menunggu'}
+                                                                            {a.status === 'pending' ? 'Menunggu' : a.status === 'approved' ? 'Disetujui' : 'Perlu Revisi'}
                                                                         </span>
                                                                         {a.catatan && (
                                                                             <span className="text-[11px] text-gray-400 max-w-[180px] truncate italic">

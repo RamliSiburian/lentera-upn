@@ -180,20 +180,13 @@ class LaporanController extends Controller
             ->with(['tahapan', 'jadwal.ruangan', 'penguji.dosen.user', 'penilaian.penguji.dosen.user', 'approvals'])
             ->orderBy('created_at', 'desc')->get();
 
-        // Calculate total penguji across all ujian
-        $pengujiTotal = 0;
-        foreach ($ujian as $u) {
-            $pengujiTotal += $u->penguji->count();
-        }
-
         $pdf = Pdf::loadView('pdf.laporan', [
-            'mahasiswa' => $mahasiswa,
-            'judul' => $judul,
-            'bimbingan' => $bimbingan,
-            'ujian' => $ujian,
-            'pengujiTotal' => $pengujiTotal,
+            'mahasiswa'    => $mahasiswa,
+            'judul'        => $judul,
+            'bimbingan'    => $bimbingan,
+            'ujian'        => $ujian,
             'tanggalCetak' => now()->format('d F Y H:i'),
-        ]);
+        ])->setPaper('A4', 'landscape');
 
         $namaMhs = str_replace(' ', '_', $mahasiswa->user->name ?? 'mahasiswa');
         return $pdf->download('Laporan_Bimbingan_' . $namaMhs . '.pdf');

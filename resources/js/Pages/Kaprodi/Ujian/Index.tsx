@@ -7,7 +7,7 @@ interface User { name: string; }
 interface Mahasiswa { id: string; nim: string; user: User; }
 interface Tahapan { id: string; nama_tahapan: string; }
 interface DosenData { id: string; nama: string; user: User; }
-interface Penguji { id: string; urutan: number; dosen: DosenData; }
+interface Penguji { id: string; urutan: number; dosen: DosenData; penguji_acc: 'pending' | 'accepted' | 'rejected'; }
 interface Ruangan { id: string; nama: string; }
 interface Jadwal { tanggal: string; jam_mulai: string; jam_selesai: string; ruangan: Ruangan; }
 interface Penilaian { id: string; nilai: number; status_hasil: string; catatan: string | null; penguji: Penguji; }
@@ -33,10 +33,15 @@ export default function Index({ pengajuanUjian }: Props) {
         }
     };
 
-    const statusColor = (s: string) => ({ submitted: 'blue', reviewed: 'yellow', approved: 'green', rejected: 'red', selesai: 'purple' }[s] || 'gray');
-    const statusLabel = (s: string) => ({ submitted: 'Diajukan', reviewed: 'Diproses', approved: 'Disetujui', rejected: 'Ditolak', selesai: 'Selesai' }[s] || s);
+    const statusColor = (s: string) => ({ submitted: 'blue', menunggu_penguji: 'yellow', reviewed: 'orange', approved: 'green', rejected: 'red', selesai: 'purple' }[s] || 'gray');
+    const statusLabel = (s: string) => ({ submitted: 'Diajukan', menunggu_penguji: 'Menunggu Konfirmasi Penguji', reviewed: 'Menunggu ACC Kaprodi', approved: 'Disetujui', rejected: 'Ditolak', selesai: 'Selesai' }[s] || s);
     const hasilColor = (h: string) => ({ lulus: 'green', revisi: 'yellow', ngulang: 'red' }[h] || 'gray');
     const hasilLabel = (h: string) => ({ lulus: 'Lulus', revisi: 'Revisi', ngulang: 'Mengulang' }[h] || h);
+    const pengujiAccStyle = (acc: string) => ({
+        accepted: { bg: 'rgba(34,197,94,0.10)', color: '#15803d', label: '✓ Diterima' },
+        rejected:  { bg: 'rgba(239,68,68,0.10)',  color: '#b91c1c', label: '✕ Ditolak' },
+        pending:   { bg: 'rgba(251,183,38,0.12)', color: '#92400e', label: '○ Menunggu' },
+    }[acc] || { bg: 'rgba(0,0,0,0.06)', color: '#777', label: '○ Belum' });
 
     return (
         <AppLayout title="Manajemen Ujian">
@@ -52,6 +57,8 @@ export default function Index({ pengajuanUjian }: Props) {
                     {pengajuanUjian.map(u => {
                         const allNilaiSubmitted = u.penguji?.length > 0 && u.penilaian?.length >= u.penguji?.length;
                         const hasApproval = u.approvals?.length > 0;
+                        const allPengujiAccepted = u.penguji?.length > 0 && u.penguji.every(p => p.penguji_acc === 'accepted');
+                        const hasPendingPenguji = u.penguji?.some(p => p.penguji_acc === 'pending');
 
                         return (
                             <div key={u.id} className="bg-white rounded-2xl shadow-sm border border-gray-100/80 overflow-hidden hover:shadow-md transition-all duration-300">
@@ -73,17 +80,34 @@ export default function Index({ pengajuanUjian }: Props) {
                                         </div>
                                     </div>
 
-                                    {/* Penguji */}
+                                    {/* Penguji + status acc masing-masing */}
                                     {u.penguji?.length > 0 && (
                                         <div className="mt-4 pt-4 border-t border-gray-50">
                                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Penguji</p>
+                                            {hasPendingPenguji && (
+                                                <div
+                                                    className="flex items-center gap-2 p-2.5 rounded-xl mb-2 text-xs"
+                                                    style={{ background: 'rgba(251,183,38,0.10)', border: '1px solid rgba(251,183,38,0.25)', color: '#78350f' }}
+                                                >
+                                                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    Menunggu konfirmasi dari beberapa dosen penguji. Tombol Approve Ujian akan aktif setelah semua penguji menerima penugasan.
+                                                </div>
+                                            )}
                                             <div className="flex flex-wrap gap-2">
-                                                {u.penguji.map(p => (
-                                                    <div key={p.id} className="flex items-center gap-2 bg-indigo-50/70 rounded-xl px-3 py-1.5">
-                                                        <div className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">{p.urutan}</div>
-                                                        <span className="text-sm text-indigo-700 font-medium">{p.dosen?.user?.name || p.dosen?.nama}</span>
-                                                    </div>
-                                                ))}
+                                                {u.penguji.map(p => {
+                                                    const pStyle = pengujiAccStyle(p.penguji_acc);
+                                                    return (
+                                                        <div key={p.id} className="flex items-center gap-2 bg-indigo-50/70 rounded-xl px-3 py-1.5">
+                                                            <div className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">{p.urutan}</div>
+                                                            <span className="text-sm text-indigo-700 font-medium">{p.dosen?.user?.name || p.dosen?.nama}</span>
+                                                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: pStyle.bg, color: pStyle.color }}>
+                                                                {pStyle.label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -138,9 +162,17 @@ export default function Index({ pengajuanUjian }: Props) {
                                     {/* Actions */}
                                     {!hasApproval && (
                                         <div className="mt-4 pt-4 border-t border-gray-50">
-                                            {u.status === 'submitted' && (
+                                            {(u.status === 'submitted' || u.status === 'menunggu_penguji') && (
                                                 <div className="flex items-center gap-2">
-                                                    <Button size="sm" variant="success" onClick={() => { setActionId(u.id); setActionType('approve_ujian'); form.setData('status', 'approved'); }} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}>Approve</Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="success"
+                                                        disabled={!allPengujiAccepted}
+                                                        onClick={() => { setActionId(u.id); setActionType('approve_ujian'); form.setData('status', 'approved'); }}
+                                                        icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                                    >
+                                                        {allPengujiAccepted ? 'Approve Ujian' : 'Menunggu Penguji...'}
+                                                    </Button>
                                                     <Button size="sm" variant="danger" onClick={() => { setActionId(u.id); setActionType('approve_ujian'); form.setData('status', 'rejected'); }} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}>Tolak</Button>
                                                 </div>
                                             )}

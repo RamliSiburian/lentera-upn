@@ -72,12 +72,20 @@ class MahasiswaController extends Controller
             'angkatan' => 'required|integer|min:2010|max:2035',
             'no_hp'    => 'nullable|string|max:20',
             'status'   => 'required|in:aktif,nonaktif,cuti,lulus',
+            'password' => 'nullable|string|min:6',
         ]);
 
-        $mhs->user->update([
+        $userUpdate = [
             'name'  => $validated['name'],
             'email' => $validated['email'],
-        ]);
+        ];
+
+        // Update password hanya jika diisi
+        if (!empty($validated['password'])) {
+            $userUpdate['password'] = bcrypt($validated['password']);
+        }
+
+        $mhs->user->update($userUpdate);
 
         $mhs->update([
             'nim'      => $validated['nim'],

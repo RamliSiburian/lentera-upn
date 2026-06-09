@@ -8,6 +8,8 @@ use App\Models\BimbinganAcc;
 use App\Models\Komentar;
 use App\Models\Mahasiswa;
 use App\Models\Pembimbing;
+use App\Models\PengajuanUjian;
+use App\Models\PenilaianApproval;
 use App\Models\TahapanConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +21,25 @@ class BimbinganController extends Controller
     private function getMahasiswa()
     {
         return Mahasiswa::where('user_id', Auth::id())->firstOrFail();
+    }
+
+    /**
+     * Cek apakah ada pengajuan ujian yang masih pending / nilai belum di-acc kaprodi.
+     * Jika ada, mahasiswa tidak bisa lanjut ke tahapan berikutnya.
+     */
+    private function hasBlockingUjian($mahasiswaId): bool
+    {
+        // Cek ujian yang statusnya submitted / reviewed / menunggu_penguji / approved (tapi nilai belum di-acc)
+        return PengajuanUjian::where('mahasiswa_id', $mahasiswaId)
+            ->where(function ($q) {
+                // Masih dalam proses (belum selesai) ATAU sudah approved tapi nilai belum di-acc Kaprodi
+                $q->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])
+                  ->orWhere(function ($q2) {
+                      $q2->where('status', 'approved')
+                         ->whereDoesntHave('approvals', fn($q3) => $q3->where('status', 'approved'));
+                  });
+            })
+            ->exists();
     }
 
     public function index()
@@ -69,14 +90,13 @@ class BimbinganController extends Controller
                 ];
             });
 
-        // Only show bimbingan-type tahapan (sempro/semhas/sidang handled via pengajuan ujian)
+        // Only show bimbingan-type tahapan
         $tahapanList = TahapanConfig::where('is_active', true)
             ->where('tipe', 'bimbingan')
             ->orderBy('urutan')
             ->get();
 
-        // Tahapan yang sudah pernah di-ACC (approved) oleh mahasiswa ini
-        // → akan di-disable di frontend agar tidak bisa dipilih ulang
+        // Tahapan yang sudah pernah di-ACC
         $approvedTahapanIds = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
             ->where('status', 'approved')
             ->whereNotNull('tahapan_id')
@@ -85,28 +105,29 @@ class BimbinganController extends Controller
             ->values()
             ->toArray();
 
-        // Determine next tipe & canCreate
-        $nextTipe = 'bimbingan';
-        $canCreate = false;
-        if ($mahasiswa->status !== 'lulus' && $judul && $judul->pembimbing->count() > 0) {
-            $lastBimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
-                ->orderBy('created_at', 'desc')
-                ->first();
+        // Cek apakah ada ujian yang memblokir
+        $hasBlocking = $this->hasBlockingUjian($mahasiswa->id);
 
-            if (!$lastBimbingan) {
-                // First bimbingan ever
-                $canCreate = true;
-                $nextTipe = 'bimbingan';
-            } elseif ($lastBimbingan->status === 'approved') {
-                // Last bimbingan approved → can create new bimbingan
-                $canCreate = true;
-                $nextTipe = 'bimbingan';
-            } elseif ($lastBimbingan->status === 'rejected') {
-                // Last bimbingan needs revision → can upload revision
-                $canCreate = true;
-                $nextTipe = 'revisi';
+        // Determine canCreate — hanya bisa buat bimbingan BARU jika:
+        // 1. Tidak sedang proses ujian yang pending / nilai belum di-acc
+        // 2. Bimbingan terakhir sudah approved (atau belum ada sama sekali)
+        $canCreate = false;
+        $blockReason = null;
+        if ($mahasiswa->status !== 'lulus' && $judul && $judul->pembimbing->count() > 0) {
+            if ($hasBlocking) {
+                $blockReason = 'Ada pengajuan ujian atau nilai ujian yang belum disetujui oleh Kaprodi.';
+            } else {
+                $lastBimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if (!$lastBimbingan || $lastBimbingan->status === 'approved') {
+                    // Belum ada bimbingan atau bimbingan terakhir sudah approved → bisa buat baru
+                    $canCreate = true;
+                }
+                // Jika status submitted / in_review / rejected → tidak bisa buat baru
+                // (revisi dilakukan di bimbingan yang sama via submitRevisi())
             }
-            // If submitted/in_review → cannot create new one yet
         }
 
         return Inertia::render('Mahasiswa/Bimbingan/Index', [
@@ -121,19 +142,36 @@ class BimbinganController extends Controller
                 ]),
             ] : null,
             'tahapanList'        => $tahapanList,
-            'approvedTahapanIds' => $approvedTahapanIds, // ← baru: tahapan yang sudah ACC
+            'approvedTahapanIds' => $approvedTahapanIds,
             'canCreateBimbingan' => $canCreate,
-            'nextTipe'           => $nextTipe,
+            'blockReason'        => $blockReason,
             'mahasiswaStatus'    => $mahasiswa->status,
         ]);
     }
 
+    /**
+     * Buat bimbingan BARU (hanya jika bimbingan sebelumnya sudah approved atau belum ada).
+     */
     public function store(Request $request)
     {
         $mahasiswa = $this->getMahasiswa();
 
         if ($mahasiswa->status === 'lulus') {
             return back()->with('error', 'Anda sudah lulus dan tidak dapat membuat bimbingan baru.');
+        }
+
+        // Blokir jika ada ujian pending / nilai belum di-acc
+        if ($this->hasBlockingUjian($mahasiswa->id)) {
+            return back()->with('error', 'Tidak dapat mengajukan bimbingan baru. Ada pengajuan ujian atau nilai ujian yang belum disetujui oleh Kaprodi.');
+        }
+
+        // Pastikan bimbingan terakhir sudah approved (atau belum ada)
+        $lastBimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($lastBimbingan && $lastBimbingan->status !== 'approved') {
+            return back()->with('error', 'Tidak dapat membuat bimbingan baru. Bimbingan sebelumnya belum disetujui atau masih dalam proses revisi. Gunakan tombol "Upload Revisi" untuk bimbingan yang ditolak.');
         }
 
         $validated = $request->validate([
@@ -150,31 +188,21 @@ class BimbinganController extends Controller
         $fileName = time() . '_' . $file->getClientOriginalName();
         $filePath = $file->storeAs('bimbingan/' . $mahasiswa->id, $fileName, 'public');
 
-        // Get last bimbingan number
-        $lastBimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)->max('bimbingan_ke') ?? 0;
-
-        // Determine tipe: revisi only if last bimbingan was rejected (needs revision)
-        $tipe = 'bimbingan';
-        $lastBimbinganRecord = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
-            ->orderBy('created_at', 'desc')
-            ->first();
-        if ($lastBimbinganRecord && $lastBimbinganRecord->status === 'rejected') {
-            $tipe = 'revisi';
-        }
+        $lastBimbinganKe = Bimbingan::where('mahasiswa_id', $mahasiswa->id)->max('bimbingan_ke') ?? 0;
 
         $bimbingan = Bimbingan::create([
             'mahasiswa_id' => $mahasiswa->id,
             'tahapan_id' => $validated['tahapan_config_id'],
             'judul_laporan' => $file->getClientOriginalName(),
             'file_path' => $filePath,
-            'tipe' => $tipe,
+            'tipe' => 'bimbingan',
             'status' => 'submitted',
-            'bimbingan_ke' => $lastBimbingan + 1,
+            'bimbingan_ke' => $lastBimbinganKe + 1,
             'catatan_mhs' => $validated['catatan_mhs'] ?? null,
             'submitted_at' => now(),
         ]);
 
-        // Create approval records for each approved pembimbing
+        // Buat approval record untuk setiap pembimbing yang sudah approved
         $pembimbings = Pembimbing::where('mahasiswa_id', $mahasiswa->id)
             ->where('status', 'approved')
             ->get();
@@ -190,6 +218,60 @@ class BimbinganController extends Controller
         }
 
         return redirect()->route('mahasiswa.bimbingan')->with('success', 'Bimbingan berhasil diupload.');
+    }
+
+    /**
+     * Upload revisi pada bimbingan yang sudah ada (status rejected).
+     * Hanya reset approval dari pembimbing yang me-reject, yang sudah approve tidak perlu ulang.
+     */
+    public function submitRevisi(Request $request, $bimbinganId)
+    {
+        $mahasiswa = $this->getMahasiswa();
+
+        $bimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+            ->where('id', $bimbinganId)
+            ->where('status', 'rejected')
+            ->firstOrFail();
+
+        $request->validate([
+            'catatan_mhs' => 'nullable|string',
+            'file' => 'required|file|mimes:pdf|max:20480',
+        ]);
+
+        // Update file dan catatan di bimbingan yang sama
+        $file = $request->file('file');
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        $filePath = $file->storeAs('bimbingan/' . $mahasiswa->id, $fileName, 'public');
+
+        $bimbingan->update([
+            'judul_laporan' => $file->getClientOriginalName(),
+            'file_path'     => $filePath,
+            'catatan_mhs'   => $request->catatan_mhs ?? $bimbingan->catatan_mhs,
+            'status'        => 'submitted',
+            'submitted_at'  => now(),
+        ]);
+
+        // Reset HANYA approval yang berstatus 'rejected' kembali ke 'pending'
+        // Approval yang sudah 'approved' TIDAK diubah
+        BimbinganAcc::where('bimbingan_id', $bimbinganId)
+            ->where('status', 'rejected')
+            ->update([
+                'status'      => 'pending',
+                'catatan'     => null,
+                'file_revisi' => null,
+                'reviewed_at' => null,
+            ]);
+
+        // Setelah reset, cek apakah semua sudah approved (edge case: semua reject di-reset)
+        $allApproved = BimbinganAcc::where('bimbingan_id', $bimbinganId)
+            ->where('status', '!=', 'approved')
+            ->count() === 0;
+
+        if ($allApproved) {
+            $bimbingan->update(['status' => 'approved']);
+        }
+
+        return redirect()->route('mahasiswa.bimbingan')->with('success', 'Revisi berhasil diupload. Menunggu persetujuan dari pembimbing yang merevisi.');
     }
 
     public function komentar(Request $request, $id)

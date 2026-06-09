@@ -777,12 +777,24 @@ export default function DosenIndex({ dosen = [], konsentrasiList = [] }: Props) 
                                         <label className="f-label f-label-req">Kuota Bimbingan (Maks)</label>
                                         <input className="f-input" type="number" value={form.kuota_bimbingan} onChange={e => setForm({ ...form, kuota_bimbingan: parseInt(e.target.value) || 0 })} required />
                                     </div>
-                                    {!editMode && (
-                                        <div className="f-group">
-                                            <label className="f-label f-label-req">Password</label>
-                                            <input className="f-input" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimal 6 karakter" required />
-                                        </div>
-                                    )}
+                                    <div className="f-group">
+                                        <label className={`f-label${!editMode ? ' f-label-req' : ''}`}>
+                                            {editMode ? 'Password Baru (opsional)' : 'Password'}
+                                        </label>
+                                        <input
+                                            className="f-input"
+                                            type="password"
+                                            value={form.password}
+                                            onChange={e => setForm({ ...form, password: e.target.value })}
+                                            placeholder={editMode ? 'Kosongkan jika tidak ingin mengubah password' : 'Minimal 6 karakter'}
+                                            required={!editMode}
+                                        />
+                                        {editMode && (
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: '0.25rem' }}>
+                                                Isi hanya jika ingin mereset password dosen ini.
+                                            </p>
+                                        )}
+                                    </div>
                                     <div className="f-group">
                                         <label className="f-label">Konsentrasi</label>
                                         <div className="k-chips">

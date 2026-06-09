@@ -104,6 +104,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/pembimbing/{pembimbingId}/approve', [DosenBimbinganController::class, 'approvePembimbing'])->name('dosen.pembimbing.approve');
         Route::post('/pembimbing/{pembimbingId}/reject', [DosenBimbinganController::class, 'rejectPembimbing'])->name('dosen.pembimbing.reject');
         Route::get('/ujian', [DosenUjianController::class, 'index'])->name('dosen.ujian');
+        Route::post('/ujian/penguji/{pengujiId}/accept', [DosenUjianController::class, 'acceptPenguji'])->name('dosen.penguji.accept');
+        Route::post('/ujian/penguji/{pengujiId}/reject', [DosenUjianController::class, 'rejectPenguji'])->name('dosen.penguji.reject');
         Route::get('/penilaian', [DosenPenilaianController::class, 'index'])->name('dosen.penilaian');
         Route::post('/penilaian', [DosenPenilaianController::class, 'store'])->name('dosen.penilaian.store');
         Route::get('/profil', fn () => inertia('Dashboard'))->name('dosen.profil');
@@ -121,6 +123,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/bimbingan', [MhsBimbinganController::class, 'index'])->name('mahasiswa.bimbingan');
         Route::post('/bimbingan', [MhsBimbinganController::class, 'store'])->name('mahasiswa.bimbingan.store');
+        Route::post('/bimbingan/{bimbinganId}/revisi', [MhsBimbinganController::class, 'submitRevisi'])->name('mahasiswa.bimbingan.revisi');
         Route::post('/bimbingan/{bimbinganId}/komentar', [MhsBimbinganController::class, 'komentar'])->name('mahasiswa.bimbingan.komentar');
 
         Route::get('/ujian', [MhsUjianController::class, 'index'])->name('mahasiswa.ujian');

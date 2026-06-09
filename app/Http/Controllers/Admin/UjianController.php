@@ -116,12 +116,14 @@ class UjianController extends Controller
                 'urutan'             => $urutan + 1,
                 'assigned_by'        => Auth::id(),
                 'assigned_at'        => now(),
+                'penguji_acc'        => 'pending', // menunggu konfirmasi dosen
             ]);
         }
 
-        $pengajuan->update(['status' => 'reviewed']);
+        // Status menjadi 'menunggu_penguji' — menunggu semua dosen penguji konfirmasi
+        $pengajuan->update(['status' => 'menunggu_penguji']);
 
-        return back()->with('success', 'Penguji berhasil ditugaskan.');
+        return back()->with('success', 'Penguji berhasil ditugaskan. Menunggu konfirmasi dari dosen penguji.');
     }
 
     // ─────────────────────────────────────────────────────────────
