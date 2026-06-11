@@ -207,4 +207,54 @@ class JudulController extends Controller
 
         return redirect()->route('mahasiswa.judul')->with('success', 'Permintaan pembimbing berhasil diajukan.');
     }
+
+    public function requestRevisi(Request $request, $id)
+    {
+        $mahasiswa = $this->getMahasiswa();
+        $mahasiswa->load('user');
+        
+        $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)->findOrFail($id);
+
+        if ($judul->status !== 'approved' && $judul->revision_status !== 'revision_rejected') {
+            return back()->with('error', 'Judul tidak dapat direvisi.');
+        }
+
+        $validated = $request->validate([
+            'judul_baru' => 'required|string|max:255',
+            'alasan_revisi' => 'required|string',
+            'dokumen' => 'nullable|file|mimes:pdf|max:10240',
+        ]);
+
+        $updateData = [
+            'judul' => $validated['judul_baru'],
+            'alasan_revisi' => $validated['alasan_revisi'],
+            'revision_status' => 'revision_pending',
+            'revision_submitted_at' => now(),
+        ];
+
+        if ($request->hasFile('dokumen')) {
+            if ($judul->dokumen) {
+                Storage::disk('public')->delete($judul->dokumen);
+            }
+            $updateData['dokumen'] = $request->file('dokumen')->store('sinopsis/' . $mahasiswa->id, 'public');
+        }
+
+        $judul->update($updateData);
+
+        // Notify Kaprodi
+        $kaprodiUserIds = \App\Models\User::where('role', 'k.prodi')
+            ->orWhereHas('dosen', fn($q) => $q->where('is_kaprodi', true))
+            ->pluck('id')
+            ->toArray();
+
+        \App\Services\NotifikasiService::sendBulk(
+            $kaprodiUserIds,
+            'Pengajuan Revisi Judul',
+            'Mahasiswa ' . $mahasiswa->user->name . ' mengajukan revisi judul.',
+            'judul',
+            $judul->id
+        );
+
+        return redirect()->route('mahasiswa.judul')->with('success', 'Pengajuan revisi judul berhasil dikirim.');
+    }
 }

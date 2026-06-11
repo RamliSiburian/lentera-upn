@@ -182,8 +182,22 @@ class BimbinganController extends Controller
         $allApproved = $bimbingan->approvals()->where('status', '!=', 'approved')->count() === 0;
         if ($allApproved) {
             $bimbingan->update(['status' => 'approved']);
+            \App\Services\NotifikasiService::send(
+                $bimbingan->mahasiswa->user->id,
+                'Bimbingan Disetujui',
+                'Bimbingan ' . ($bimbingan->tahapanConfig->nama_tahapan ?? '') . ' Anda telah disetujui oleh seluruh pembimbing.',
+                'bimbingan',
+                $bimbingan->id
+            );
         } else {
             $bimbingan->update(['status' => 'in_review']);
+            \App\Services\NotifikasiService::send(
+                $bimbingan->mahasiswa->user->id,
+                'Bimbingan Disetujui Sebagian',
+                'Bimbingan Anda disetujui oleh ' . $dosen->user->name . '.',
+                'bimbingan',
+                $bimbingan->id
+            );
         }
 
         return redirect()->route('dosen.bimbingan')->with('success', 'Bimbingan disetujui.');
@@ -230,8 +244,22 @@ class BimbinganController extends Controller
 
         if ($allApproved) {
             $bimbingan->update(['status' => 'approved']);
+            \App\Services\NotifikasiService::send(
+                $bimbingan->mahasiswa->user->id,
+                'Bimbingan Disetujui',
+                'Bimbingan ' . ($bimbingan->tahapanConfig->nama_tahapan ?? '') . ' Anda telah disetujui oleh seluruh pembimbing.',
+                'bimbingan',
+                $bimbingan->id
+            );
         } elseif ($hasRejected) {
             $bimbingan->update(['status' => 'rejected']);
+            \App\Services\NotifikasiService::send(
+                $bimbingan->mahasiswa->user->id,
+                'Revisi Bimbingan Diminta',
+                'Bimbingan Anda perlu direvisi oleh ' . $dosen->user->name . '. Catatan: ' . $request->input('catatan'),
+                'bimbingan',
+                $bimbingan->id
+            );
         } else {
             $bimbingan->update(['status' => 'in_review']);
         }

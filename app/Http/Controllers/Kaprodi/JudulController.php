@@ -209,4 +209,48 @@ class JudulController extends Controller
 
         return redirect()->route('kaprodi.judul')->with('success', 'Pembimbing berhasil ditolak.');
     }
+
+    public function reviewRevisi(Request $request, $id)
+    {
+        $prodiIds = $this->getKaprodiProdiIds();
+        $judul = JudulPengajuan::where('revision_status', 'revision_pending')
+            ->whereHas('mahasiswa', fn($q) => $q->whereIn('prodi_id', $prodiIds))
+            ->findOrFail($id);
+
+        $request->validate([
+            'aksi' => 'required|in:acc,tolak',
+            'catatan_revisi_kaprodi' => 'required|string',
+        ]);
+
+        $status = $request->aksi === 'acc' ? 'revision_approved' : 'revision_rejected';
+
+        $judul->update([
+            'revision_status' => $status,
+            'catatan_revisi_kaprodi' => $request->catatan_revisi_kaprodi,
+            'revision_reviewed_by' => Auth::id(),
+            'revision_reviewed_at' => now(),
+        ]);
+
+        $judul->load('mahasiswa.user');
+
+        if ($request->aksi === 'acc') {
+            \App\Services\NotifikasiService::send(
+                $judul->mahasiswa->user->id,
+                'Revisi Judul Disetujui',
+                'Revisi judul Anda telah disetujui Kaprodi. Catatan: ' . $request->catatan_revisi_kaprodi,
+                'judul',
+                $judul->id
+            );
+        } else {
+            \App\Services\NotifikasiService::send(
+                $judul->mahasiswa->user->id,
+                'Revisi Judul Ditolak',
+                'Revisi judul Anda ditolak Kaprodi. Silakan ajukan revisi ulang. Catatan Kaprodi: ' . $request->catatan_revisi_kaprodi,
+                'judul',
+                $judul->id
+            );
+        }
+
+        return redirect()->route('kaprodi.judul')->with('success', 'Review revisi judul berhasil dikirim.');
+    }
 }

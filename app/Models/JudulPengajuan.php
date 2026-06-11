@@ -36,6 +36,12 @@ class JudulPengajuan extends Model
         'keterangan_tolak',
         'pengajuan_ke',
         'submitted_at',
+        'revision_status',
+        'alasan_revisi',
+        'catatan_revisi_kaprodi',
+        'revision_submitted_at',
+        'revision_reviewed_by',
+        'revision_reviewed_at',
     ];
 
     protected $appends = ['dokumen_url'];
@@ -47,6 +53,8 @@ class JudulPengajuan extends Model
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'revision_submitted_at' => 'datetime',
+        'revision_reviewed_at' => 'datetime',
     ];
 
     public function mahasiswa()

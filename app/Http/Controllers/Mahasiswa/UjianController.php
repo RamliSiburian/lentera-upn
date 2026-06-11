@@ -186,13 +186,22 @@ class UjianController extends Controller
             }
         }
 
-        PengajuanUjian::create([
+        $ujian = PengajuanUjian::create([
             'mahasiswa_id' => $mahasiswa->id,
             'tahapan_id'   => $request->tahapan_id,
             'status'       => 'submitted',
             'keterangan'   => $request->keterangan,
             'submitted_at' => now(),
         ]);
+
+        $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id')->toArray();
+        \App\Services\NotifikasiService::sendBulk(
+            $adminUserIds,
+            'Pengajuan Ujian Baru',
+            'Mahasiswa ' . $user->name . ' mengajukan ujian ' . ($tahapan->nama_tahapan ?? 'Ujian') . '.',
+            'ujian',
+            $ujian->id
+        );
 
         return back()->with('success', 'Pengajuan ujian berhasil dikirim.');
     }

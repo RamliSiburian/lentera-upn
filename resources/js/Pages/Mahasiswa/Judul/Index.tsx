@@ -11,6 +11,8 @@ interface Judul {
     status: string; keterangan_tolak: string | null; catatan_admin: string | null; catatan_kaprodi: string | null;
     dokumen: string | null; dokumen_url: string | null;
     konsentrasi: Konsentrasi; pembimbing: Pembimbing[]; created_at: string;
+    revision_status: string | null; alasan_revisi: string | null; catatan_revisi_kaprodi: string | null;
+    revision_submitted_at: string | null; revision_reviewed_at: string | null;
 }
 interface Props { juduls: Judul[]; konsentrasis: Konsentrasi[]; [key: string]: any; }
 
@@ -421,11 +423,33 @@ export default function Index({ juduls, konsentrasis }: Props) {
     const { flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
     const [showPembimbingModal, setShowPembimbingModal] = useState<string | null>(null);
+    const [showRevisiModal, setShowRevisiModal] = useState<Judul | null>(null);
     const [availableDosens, setAvailableDosens] = useState<Dosen[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const { data, setData, post, put, processing, reset } = useForm({ judul: '', konsentrasi_id: '', deskripsi: '', dokumen: null as File | null });
     const pembimbingForm = useForm({ dosen_id_1: '', dosen_id_2: '' });
+    const revisiForm = useForm({ judul_baru: '', alasan_revisi: '', dokumen: null as File | null });
+
+    const handleOpenRevisi = (j: Judul) => {
+        revisiForm.setData({
+            judul_baru: j.judul,
+            alasan_revisi: '',
+            dokumen: null
+        });
+        setShowRevisiModal(j);
+    };
+
+    const handleRevisiSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!showRevisiModal) return;
+        revisiForm.post(route('mahasiswa.judul.revisi', showRevisiModal.id), {
+            onSuccess: () => {
+                setShowRevisiModal(null);
+                revisiForm.reset();
+            }
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -519,7 +543,19 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                                 <span className="date-text">{new Date(j.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                                             </div>
                                         </div>
-                                        <StatusBadge status={j.status} />
+                                        <div className="flex flex-col items-end gap-1.5">
+                                            <StatusBadge status={j.status} />
+                                            {j.revision_status && (
+                                                <span className={`status-badge ${
+                                                    j.revision_status === 'revision_pending' ? 'badge-yellow' :
+                                                    j.revision_status === 'revision_approved' ? 'badge-green' : 'badge-red'
+                                                }`} style={{ fontSize: '10px', padding: '0.2rem 0.6rem' }}>
+                                                    <span className="status-badge-dot" />
+                                                    {j.revision_status === 'revision_pending' ? 'Revisi Pending' :
+                                                     j.revision_status === 'revision_approved' ? 'Revisi Disetujui' : 'Revisi Ditolak'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Progress bar */}
@@ -556,6 +592,47 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                             <div className="catatan-block catatan-kaprodi">
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
                                                 <span><strong>Alasan:</strong> {j.keterangan_tolak}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Banner Revisi Pending / Rejected / Approved */}
+                                    {j.revision_status === 'revision_pending' && (
+                                        <div className="judul-catatan">
+                                            <div className="catatan-block" style={{ backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                                                <svg style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                                                <div>
+                                                    <span className="font-semibold block text-[12px]">Revisi Judul Menunggu Persetujuan</span>
+                                                    <span className="text-[11px] block mt-0.5 text-[#d97706]">Pengajuan bimbingan ditangguhkan sementara. Menunggu persetujuan Kaprodi.</span>
+                                                    <span className="text-[11px] block mt-1 italic">"Alasan Anda: {j.alasan_revisi}"</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {j.revision_status === 'revision_rejected' && (
+                                        <div className="judul-catatan">
+                                            <div className="catatan-block catatan-kaprodi" style={{ border: '1px solid #fca5a5' }}>
+                                                <svg style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                <div>
+                                                    <span className="font-semibold block text-[12px]">Revisi Judul Ditolak Kaprodi</span>
+                                                    <span className="text-[11px] block mt-0.5">Silakan ajukan revisi kembali. Catatan Kaprodi:</span>
+                                                    <span className="text-[11px] block mt-1 p-2 bg-white/70 rounded border border-red-100 font-medium text-red-800">
+                                                        {j.catatan_revisi_kaprodi}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {j.revision_status === 'revision_approved' && j.catatan_revisi_kaprodi && (
+                                        <div className="judul-catatan">
+                                            <div className="catatan-block" style={{ backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+                                                <svg style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                <div>
+                                                    <span className="font-semibold block text-[12px]">Revisi Judul Terakhir Disetujui</span>
+                                                    <span className="text-[11px] block mt-0.5">Catatan Kaprodi: "{j.catatan_revisi_kaprodi}"</span>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -607,6 +684,12 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                             <button className="act-btn act-btn-ghost" onClick={() => handleEdit(j)}>
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                                 Ajukan Ulang
+                                            </button>
+                                        )}
+                                        {j.status === 'approved' && j.revision_status !== 'revision_pending' && (
+                                            <button className="act-btn act-btn-ghost" style={{ backgroundColor: '#fff7ed', color: '#c2410c', borderColor: '#ffedd5' }} onClick={() => handleOpenRevisi(j)}>
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                {j.revision_status === 'revision_rejected' ? 'Ajukan Revisi Ulang' : 'Ajukan Revisi Judul'}
                                             </button>
                                         )}
                                     </div>
@@ -707,6 +790,65 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                     {pembimbingForm.processing ? 'Mengajukan...' : 'Ajukan Pembimbing'}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── REVISI JUDUL MODAL ── */}
+                {showRevisiModal && (
+                    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setShowRevisiModal(null); revisiForm.reset(); } }}>
+                        <div className="modal-box modal-md">
+                            <div className="modal-head">
+                                <div>
+                                    <div className="modal-title">Ajukan Revisi Judul</div>
+                                    <div className="modal-title-sub">Ajukan revisi judul skripsi Anda yang telah disetujui sebelumnya</div>
+                                </div>
+                                <button className="modal-close" onClick={() => { setShowRevisiModal(null); revisiForm.reset(); }}>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleRevisiSubmit}>
+                                <div className="modal-body">
+                                    <div className="f-group">
+                                        <label className="f-label f-label-req">Judul Baru</label>
+                                        <input
+                                            className="f-input"
+                                            value={revisiForm.data.judul_baru}
+                                            onChange={e => revisiForm.setData('judul_baru', e.target.value)}
+                                            placeholder="Masukkan judul baru yang diusulkan"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="f-group">
+                                        <label className="f-label f-label-req">Alasan Revisi (Deskripsi)</label>
+                                        <textarea
+                                            className="f-textarea"
+                                            value={revisiForm.data.alasan_revisi}
+                                            onChange={e => revisiForm.setData('alasan_revisi', e.target.value)}
+                                            rows={4}
+                                            placeholder="Jelaskan alasan pengajuan revisi judul skripsi Anda secara detail (WAJIB)"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="f-group">
+                                        <label className="f-label">Dokumen Sinopsis Baru (Opsional)</label>
+                                        <input
+                                            type="file"
+                                            accept=".pdf"
+                                            onChange={e => revisiForm.setData('dokumen', e.target.files?.[0] || null)}
+                                            className="f-input"
+                                            style={{ padding: '0.6rem' }}
+                                        />
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: '0.25rem' }}>Upload dokumen sinopsis baru jika ada perubahan konten/metode (format PDF, maks. 10MB)</p>
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="act-btn act-btn-ghost" onClick={() => { setShowRevisiModal(null); revisiForm.reset(); }}>Batal</button>
+                                    <button type="submit" disabled={revisiForm.processing} className="act-btn act-btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
+                                        {revisiForm.processing ? 'Mengirim...' : 'Kirim Pengajuan Revisi'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 )}

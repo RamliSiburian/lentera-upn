@@ -58,6 +58,17 @@ class UjianController extends Controller
             'reviewed_at' => now(),
         ]);
 
+        $pengajuan->load('mahasiswa.user', 'tahapan');
+        \App\Services\NotifikasiService::send(
+            $pengajuan->mahasiswa->user->id,
+            $request->status === 'approved' ? 'Ujian Disetujui' : 'Ujian Ditolak',
+            $request->status === 'approved' 
+                ? 'Pengajuan ujian ' . ($pengajuan->tahapan->nama_tahapan ?? 'Ujian') . ' Anda telah disetujui.'
+                : 'Pengajuan ujian ' . ($pengajuan->tahapan->nama_tahapan ?? 'Ujian') . ' Anda ditolak. Catatan: ' . ($request->catatan ?? '-'),
+            'ujian',
+            $pengajuan->id
+        );
+
         return back()->with('success', 'Status ujian berhasil diperbarui.');
     }
 
@@ -87,6 +98,8 @@ class UjianController extends Controller
             'approved_at' => now(),
         ]);
 
+        $pengajuan->load('mahasiswa.user', 'tahapan');
+
         if ($request->status === 'approved') {
             $pengajuan->update(['status' => 'approved']);
 
@@ -101,6 +114,22 @@ class UjianController extends Controller
                     $mahasiswa->update(['status' => 'lulus']);
                 }
             }
+
+            \App\Services\NotifikasiService::send(
+                $pengajuan->mahasiswa->user->id,
+                'Nilai Ujian Disetujui',
+                'Nilai ujian ' . ($pengajuan->tahapan->nama_tahapan ?? 'Ujian') . ' Anda telah disetujui Kaprodi.',
+                'ujian',
+                $pengajuan->id
+            );
+        } else {
+            \App\Services\NotifikasiService::send(
+                $pengajuan->mahasiswa->user->id,
+                'Nilai Ujian Ditolak',
+                'Nilai ujian ' . ($pengajuan->tahapan->nama_tahapan ?? 'Ujian') . ' Anda ditolak Kaprodi. Catatan: ' . ($request->catatan ?? '-'),
+                'ujian',
+                $pengajuan->id
+            );
         }
 
         return back()->with('success', 'Penilaian berhasil di-approve.');

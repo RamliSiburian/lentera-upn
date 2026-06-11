@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import axios from 'axios';
 
 interface Props {
   children: React.ReactNode;
@@ -218,12 +219,66 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function AppLayout({ children, title }: Props) {
-  const { auth } = usePage().props as any;
+  const { auth, notifications } = usePage().props as any;
   const user = auth?.user;
   const isKaprodi = auth?.is_kaprodi || false;
   const role = user?.role || 'admin';
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
+
+  const unreadCount = notifications?.unread_count || 0;
+  const notificationItems = notifications?.items || [];
+
+  const getNotificationLink = (refType: string, userRole: string) => {
+    if (!refType) return '#';
+    if (userRole === 'mahasiswa') {
+      if (refType === 'bimbingan') return '/mahasiswa/bimbingan';
+      if (refType === 'ujian') return '/mahasiswa/ujian';
+      if (refType === 'judul') return '/mahasiswa/judul';
+    } else if (userRole === 'dosen') {
+      if (refType === 'bimbingan') return '/dosen/bimbingan';
+      if (refType === 'ujian') return '/dosen/ujian';
+    } else if (userRole === 'k.prodi') {
+      if (refType === 'bimbingan') return '/dosen/bimbingan';
+      if (refType === 'ujian') return '/kaprodi/ujian';
+      if (refType === 'judul') return '/kaprodi/judul';
+      if (refType === 'nilai') return '/kaprodi/nilai';
+    } else if (userRole === 'admin') {
+      if (refType === 'judul') return '/admin/judul';
+      if (refType === 'ujian') return '/admin/ujian';
+    }
+    return '/dashboard';
+  };
+
+  const handleNotificationClick = (notif: any) => {
+    if (!notif.is_read) {
+      axios.post(`/notifikasi/${notif.id}/read`).then(() => {
+        router.reload({ only: ['notifications'] });
+      });
+    }
+    const link = getNotificationLink(notif.ref_type, role);
+    if (link !== '#') {
+      router.visit(link);
+    }
+    setNotifDropdownOpen(false);
+  };
+
+  const handleMarkAllRead = () => {
+    axios.post('/notifikasi/read-all').then(() => {
+      router.reload({ only: ['notifications'] });
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const menus = getSidebarMenu(role, isKaprodi, user?.original_role);
   const currentPath = window.location.pathname;
@@ -453,19 +508,78 @@ export default function AppLayout({ children, title }: Props) {
 
           <div className="flex items-center gap-3">
             {/* Notification Bell */}
-            <button
-              className="relative p-2 rounded-lg transition-colors"
-              style={{ color: '#666' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-            >
-              {icons.bell}
-              {/* Red dot */}
-              <span
-                className="absolute top-[7px] right-[7px] w-[7px] h-[7px] rounded-full border-[1.5px] border-white"
-                style={{ backgroundColor: '#E8500A' }}
-              />
-            </button>
+            <div className="relative">
+              <button
+                className="relative p-2 rounded-lg transition-colors"
+                style={{ color: '#666' }}
+                onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                {icons.bell}
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute top-[5px] right-[5px] min-w-[14px] h-[14px] rounded-full text-[8px] font-bold text-white flex items-center justify-center px-0.5 border border-white animate-pulse"
+                    style={{ backgroundColor: '#E8500A' }}
+                  >
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifDropdownOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 py-2">
+                    <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                      <span className="font-semibold text-xs text-gray-800">Notifikasi</span>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllRead}
+                          className="text-[10px] font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+                        >
+                          Tandai semua dibaca
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notificationItems.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-xs text-gray-400">
+                          Tidak ada notifikasi
+                        </div>
+                      ) : (
+                        notificationItems.map((item: any) => (
+                          <div
+                            key={item.id}
+                            onClick={() => handleNotificationClick(item)}
+                            className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50/50 last:border-none flex gap-2.5 items-start ${
+                              !item.is_read ? 'bg-orange-50/20' : ''
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className={`text-xs truncate ${!item.is_read ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
+                                  {item.judul}
+                                </span>
+                                {!item.is_read && (
+                                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-600" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
+                                {item.pesan}
+                              </p>
+                              <span className="text-[9px] text-gray-400 mt-1 block">
+                                {formatTime(item.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* User info */}
             <div className="hidden sm:flex flex-col items-end">

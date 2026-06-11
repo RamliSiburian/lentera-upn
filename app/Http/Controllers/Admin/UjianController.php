@@ -109,7 +109,11 @@ class UjianController extends Controller
         PengujiUjian::where('pengajuan_ujian_id', $id)->forceDelete();
         // ────────────────────────────────────────────────────────
 
+        $pengajuan->load('mahasiswa.user', 'tahapan');
+
         foreach ($request->dosen_ids as $urutan => $dosenId) {
+            $dosen = Dosen::findOrFail($dosenId);
+
             PengujiUjian::create([
                 'pengajuan_ujian_id' => $id,
                 'dosen_id'           => $dosenId,
@@ -118,6 +122,14 @@ class UjianController extends Controller
                 'assigned_at'        => now(),
                 'penguji_acc'        => 'pending', // menunggu konfirmasi dosen
             ]);
+
+            \App\Services\NotifikasiService::send(
+                $dosen->user_id,
+                'Penugasan Penguji Ujian',
+                'Anda ditugaskan sebagai Penguji ' . ($urutan + 1) . ' untuk ujian ' . ($pengajuan->tahapan->nama_tahapan ?? 'Ujian') . ' mahasiswa ' . ($pengajuan->mahasiswa->user->name ?? '-') . '.',
+                'ujian',
+                $pengajuan->id
+            );
         }
 
         // Status menjadi 'menunggu_penguji' — menunggu semua dosen penguji konfirmasi

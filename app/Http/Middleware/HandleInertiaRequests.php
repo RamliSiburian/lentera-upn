@@ -39,6 +39,10 @@ class HandleInertiaRequests extends Middleware
                 ]) : null,
                 'is_kaprodi' => $request->user() && $request->user()->isKaprodi(),
             ],
+            'notifications' => $request->user() ? [
+                'unread_count' => \App\Models\Notifikasi::where('user_id', $request->user()->id)->where('is_read', false)->count(),
+                'items' => \App\Models\Notifikasi::where('user_id', $request->user()->id)->latest()->limit(10)->get(),
+            ] : null,
         ];
     }
 }

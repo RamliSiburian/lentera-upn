@@ -22,6 +22,7 @@ use App\Http\Controllers\Dosen\UjianController as DosenUjianController;
 use App\Http\Controllers\Dosen\PenilaianController as DosenPenilaianController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\NotifikasiController;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -35,6 +36,8 @@ require __DIR__.'/auth.php';
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/notifikasi/read-all', [NotifikasiController::class, 'markAllRead'])->name('notifikasi.readAll');
+    Route::post('/notifikasi/{id}/read', [NotifikasiController::class, 'markRead'])->name('notifikasi.read');
 
     // Shared Profile Routes (all authenticated users)
     Route::get('/profil', [ProfilController::class, 'index'])->name('profil');
@@ -84,6 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/judul', [KaprodiJudulController::class, 'index'])->name('kaprodi.judul');
         Route::post('/judul/{id}/approve', [KaprodiJudulController::class, 'approve'])->name('kaprodi.judul.approve');
         Route::post('/judul/{id}/reject', [KaprodiJudulController::class, 'reject'])->name('kaprodi.judul.reject');
+        Route::post('/judul/{id}/revisi/review', [KaprodiJudulController::class, 'reviewRevisi'])->name('kaprodi.judul.revisi.review');
         Route::post('/pembimbing/{id}/approve', [KaprodiJudulController::class, 'approvePembimbing'])->name('kaprodi.pembimbing.approve');
         Route::post('/pembimbing/{id}/reject', [KaprodiJudulController::class, 'rejectPembimbing'])->name('kaprodi.pembimbing.reject');
         Route::get('/pembimbing', fn () => inertia('Kaprodi/Pembimbing/Index'))->name('kaprodi.pembimbing');
@@ -122,6 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/judul/{id}', [MhsJudulController::class, 'destroy'])->name('mahasiswa.judul.destroy');
         Route::post('/judul/{id}/submit', [MhsJudulController::class, 'submit'])->name('mahasiswa.judul.submit');
         Route::post('/judul/{id}/pembimbing', [MhsJudulController::class, 'requestPembimbing'])->name('mahasiswa.judul.pembimbing');
+        Route::post('/judul/{id}/revisi', [MhsJudulController::class, 'requestRevisi'])->name('mahasiswa.judul.revisi');
         Route::get('/judul/{konsentrasiId}/available-dosen', [MhsJudulController::class, 'availableDosen'])->name('mahasiswa.judul.available-dosen');
 
         Route::get('/bimbingan', [MhsBimbinganController::class, 'index'])->name('mahasiswa.bimbingan');

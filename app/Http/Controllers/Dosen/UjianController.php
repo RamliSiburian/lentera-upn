@@ -79,12 +79,35 @@ class UjianController extends Controller
 
         // Cek apakah semua penguji sudah accept — jika ya, ubah status pengajuan ke 'reviewed'
         $pengajuan = $penguji->pengajuanUjian;
+        $pengajuan->load('mahasiswa.user', 'tahapan');
+        
         $allAccepted = $pengajuan->penguji()
             ->where('penguji_acc', '!=', 'accepted')
             ->count() === 0;
 
+        $kaprodiUserIds = \App\Models\User::where('role', 'k.prodi')
+            ->orWhereHas('dosen', fn($q) => $q->where('is_kaprodi', true))
+            ->pluck('id')
+            ->toArray();
+
         if ($allAccepted) {
             $pengajuan->update(['status' => 'reviewed']);
+            
+            \App\Services\NotifikasiService::sendBulk(
+                $kaprodiUserIds,
+                'Ujian Siap Direview',
+                'Seluruh penguji telah menyetujui penugasan ujian ' . ($pengajuan->tahapan->nama_tahapan ?? 'Ujian') . ' untuk mahasiswa ' . ($pengajuan->mahasiswa->user->name ?? '-') . '.',
+                'ujian',
+                $pengajuan->id
+            );
+        } else {
+            \App\Services\NotifikasiService::sendBulk(
+                $kaprodiUserIds,
+                'Penguji Menyetujui Tugas',
+                'Dosen ' . $dosen->user->name . ' menyetujui penugasan sebagai penguji untuk mahasiswa ' . ($pengajuan->mahasiswa->user->name ?? '-') . '.',
+                'ujian',
+                $pengajuan->id
+            );
         }
 
         return back()->with('success', 'Tugas penguji berhasil diterima.');
@@ -114,7 +137,31 @@ class UjianController extends Controller
 
         // Kembalikan status pengajuan ke 'submitted' agar admin bisa assign ulang
         $pengajuan = $penguji->pengajuanUjian;
+        $pengajuan->load('mahasiswa.user', 'tahapan');
         $pengajuan->update(['status' => 'submitted']);
+
+        // Kirim notifikasi ke Admin
+        $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id')->toArray();
+        \App\Services\NotifikasiService::sendBulk(
+            $adminUserIds,
+            'Penugasan Penguji Ditolak',
+            'Dosen ' . $dosen->user->name . ' menolak penugasan penguji untuk mahasiswa ' . ($pengajuan->mahasiswa->user->name ?? '-') . '. Catatan: ' . ($request->catatan ?? '-'),
+            'ujian',
+            $pengajuan->id
+        );
+
+        // Kirim notifikasi ke Kaprodi
+        $kaprodiUserIds = \App\Models\User::where('role', 'k.prodi')
+            ->orWhereHas('dosen', fn($q) => $q->where('is_kaprodi', true))
+            ->pluck('id')
+            ->toArray();
+        \App\Services\NotifikasiService::sendBulk(
+            $kaprodiUserIds,
+            'Penugasan Penguji Ditolak',
+            'Dosen ' . $dosen->user->name . ' menolak penugasan penguji untuk mahasiswa ' . ($pengajuan->mahasiswa->user->name ?? '-') . '. Catatan: ' . ($request->catatan ?? '-'),
+            'ujian',
+            $pengajuan->id
+        );
 
         return back()->with('success', 'Tugas penguji ditolak. Admin akan diberitahu untuk assign ulang penguji.');
     }

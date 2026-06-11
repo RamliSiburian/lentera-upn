@@ -111,10 +111,15 @@ class BimbinganController extends Controller
         // Determine canCreate — hanya bisa buat bimbingan BARU jika:
         // 1. Tidak sedang proses ujian yang pending / nilai belum di-acc
         // 2. Bimbingan terakhir sudah approved (atau belum ada sama sekali)
+        // 3. Judul tidak sedang dalam proses revisi
         $canCreate = false;
         $blockReason = null;
         if ($mahasiswa->status !== 'lulus' && $judul && $judul->pembimbing->count() > 0) {
-            if ($hasBlocking) {
+            if ($judul->revision_status === 'revision_pending') {
+                $blockReason = 'Pengajuan bimbingan ditangguhkan. Judul Anda sedang dalam proses revisi, tunggu persetujuan Kaprodi.';
+            } elseif ($judul->revision_status === 'revision_rejected') {
+                $blockReason = 'Pengajuan bimbingan ditangguhkan. Revisi judul Anda ditolak Kaprodi, silakan ajukan revisi ulang.';
+            } elseif ($hasBlocking) {
                 $blockReason = 'Ada pengajuan ujian atau nilai ujian yang belum disetujui oleh Kaprodi.';
             } else {
                 $lastBimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
@@ -158,6 +163,15 @@ class BimbinganController extends Controller
 
         if ($mahasiswa->status === 'lulus') {
             return back()->with('error', 'Anda sudah lulus dan tidak dapat membuat bimbingan baru.');
+        }
+
+        // Blokir jika sedang dalam proses revisi judul
+        $judul = \App\Models\JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)
+            ->whereNotIn('status', ['rejected'])
+            ->first();
+
+        if ($judul && in_array($judul->revision_status, ['revision_pending', 'revision_rejected'])) {
+            return back()->with('error', 'Pengajuan bimbingan ditangguhkan. Judul Anda sedang dalam proses revisi, tunggu persetujuan Kaprodi.');
         }
 
         // Blokir jika ada ujian pending / nilai belum di-acc
@@ -215,6 +229,14 @@ class BimbinganController extends Controller
                 'catatan' => null,
                 'reviewed_at' => null,
             ]);
+
+            \App\Services\NotifikasiService::send(
+                $p->dosen->user_id,
+                'Bimbingan Baru',
+                'Mahasiswa ' . $mahasiswa->user->name . ' mengajukan bimbingan baru.',
+                'bimbingan',
+                $bimbingan->id
+            );
         }
 
         return redirect()->route('mahasiswa.bimbingan')->with('success', 'Bimbingan berhasil diupload.');
@@ -253,6 +275,21 @@ class BimbinganController extends Controller
 
         // Reset HANYA approval yang berstatus 'rejected' kembali ke 'pending'
         // Approval yang sudah 'approved' TIDAK diubah
+        $rejectedPembimbings = BimbinganAcc::where('bimbingan_id', $bimbinganId)
+            ->where('status', 'rejected')
+            ->with('pembimbing.dosen')
+            ->get();
+
+        foreach ($rejectedPembimbings as $ra) {
+            \App\Services\NotifikasiService::send(
+                $ra->pembimbing->dosen->user_id,
+                'Revisi Bimbingan',
+                'Mahasiswa ' . $mahasiswa->user->name . ' mengunggah revisi bimbingan.',
+                'bimbingan',
+                $bimbingan->id
+            );
+        }
+
         BimbinganAcc::where('bimbingan_id', $bimbinganId)
             ->where('status', 'rejected')
             ->update([
