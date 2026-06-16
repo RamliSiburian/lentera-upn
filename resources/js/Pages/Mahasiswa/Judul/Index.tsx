@@ -466,12 +466,12 @@ export default function Index({ juduls, konsentrasis }: Props) {
         const total = j.pembimbing.length;
         return approved === total ? 100 : (approved > 0 ? 80 : 60);
     };
-    const statusBadgeClass = (s: string) => ({ draft: 'badge-gray', submitted: 'badge-blue', verified_admin: 'badge-yellow', rejected: 'badge-red', approved: 'badge-green', rejected_kaprodi: 'badge-red' }[s] || 'badge-gray');
-    const statusLabel = (s: string) => ({ draft: 'Draft', submitted: 'Diajukan', verified_admin: 'Diverifikasi Admin', rejected: 'Ditolak', approved: 'Disetujui Kaprodi', rejected_kaprodi: 'Ditolak Kaprodi' }[s] || s);
-    const pembimbingBadgeClass = (s: string) => ({ requested: 'badge-yellow', verified_admin: 'badge-blue', approved: 'badge-green', rejected: 'badge-red' }[s] || 'badge-gray');
-    const pembimbingStatusLabel = (s: string) => ({ requested: 'Diajukan', verified_admin: 'Diverifikasi', approved: 'Diterima', rejected: 'Ditolak' }[s] || s);
+    const statusBadgeClass = (s: string) => ({ draft: 'badge-gray', submitted: 'badge-blue', verified_admin: 'badge-yellow', kaprodi_approval: 'badge-indigo', rejected: 'badge-red', approved: 'badge-green', rejected_kaprodi: 'badge-red' }[s] || 'badge-gray');
+    const statusLabel = (s: string) => ({ draft: 'Draft', submitted: 'Diajukan', verified_admin: 'Diverifikasi Admin', kaprodi_approval: 'Menunggu Kaprodi', rejected: 'Ditolak', approved: 'Disetujui Kaprodi', rejected_kaprodi: 'Ditolak Kaprodi' }[s] || s);
+    const pembimbingBadgeClass = (s: string) => ({ requested: 'badge-yellow', verified_admin: 'badge-blue', kaprodi_approval: 'badge-indigo', approved: 'badge-green', rejected: 'badge-red' }[s] || 'badge-gray');
+    const pembimbingStatusLabel = (s: string) => ({ requested: 'Diajukan', verified_admin: 'Diverifikasi', kaprodi_approval: 'Menunggu Kaprodi', approved: 'Diterima', rejected: 'Ditolak' }[s] || s);
     const stepProgress = (j: Judul) => {
-        const base = ({ draft: 0, submitted: 20, verified_admin: 40, approved: 60, rejected: 0, rejected_kaprodi: 0 }[j.status] || 0);
+        const base = ({ draft: 0, submitted: 20, verified_admin: 40, kaprodi_approval: 40, approved: 60, rejected: 0, rejected_kaprodi: 0 }[j.status] || 0);
         if (base >= 60 && j.pembimbing && j.pembimbing.length > 0) return getPembimbingProgress(j);
         return base;
     };
