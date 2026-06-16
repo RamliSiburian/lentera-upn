@@ -330,13 +330,13 @@ export default function AppLayout({ children, title }: Props) {
           {/* Logo UPNVJ */}
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #E8500A, #F0820A)', padding: '2px' }}
+            style={{ background: 'transparent', padding: '1px' }}
           >
             <img
-              src="/logo-upnvj.svg"
+              src="/logo-upnvj.png"
               alt="Logo UPNVJ"
               className="w-full h-full object-contain"
-              style={{ borderRadius: '10px' }}
+              style={{ borderRadius: '8px', filter: 'drop-shadow(0 0 2px rgba(255,200,0,0.3))' }}
             />
           </div>
           {sidebarOpen && (

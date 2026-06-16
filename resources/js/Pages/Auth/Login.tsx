@@ -164,17 +164,14 @@ export default function Login({
                 }
 
                 .upnvj-badge-logo {
-                    width: 40px; height: 40px;
+                    width: 44px; height: 44px;
                     border-radius: 8px;
-                    background: #F26522;
+                    overflow: hidden;
                     display: flex; align-items: center; justify-content: center;
-                    font-weight: 800;
-                    font-size: 0.6rem;
-                    color: white;
-                    letter-spacing: -0.02em;
-                    text-align: center;
-                    line-height: 1.2;
+                    flex-shrink: 0;
                 }
+
+                .upnvj-badge-logo img { width: 100%; height: 100%; object-fit: contain; }
 
                 .upnvj-badge-text-main { font-size: 0.8125rem; font-weight: 700; color: white; }
                 .upnvj-badge-text-sub { font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-top: 1px; }
@@ -209,16 +206,15 @@ export default function Login({
                 @media (min-width: 1024px) { .mobile-logo { display: none; } }
 
                 .mobile-logo-icon {
-                    width: 56px; height: 56px;
-                    border-radius: 14px;
-                    background: #F26522;
+                    width: 72px; height: 72px;
+                    border-radius: 50%;
                     display: inline-flex;
                     align-items: center; justify-content: center;
                     margin-bottom: 0.75rem;
-                    box-shadow: 0 8px 24px rgba(242,101,34,0.35);
+                    overflow: hidden;
                 }
 
-                .mobile-logo-icon svg { width: 28px; height: 28px; stroke: white; }
+                .mobile-logo-icon img { width: 100%; height: 100%; object-fit: contain; }
 
                 .mobile-logo-name {
                     display: block;
@@ -489,15 +485,17 @@ export default function Login({
                     </div>
 
                     {/* Bottom */}
-                    {/* <div className="left-bottom">
+                    <div className="left-bottom">
                         <div className="upnvj-badge">
-                            <div className="upnvj-badge-logo">FIK<br />UPN</div>
+                            <div className="upnvj-badge-logo">
+                                <img src="/logo-upnvj.png" alt="Logo UPNVJ" />
+                            </div>
                             <div>
                                 <div className="upnvj-badge-text-main">Fakultas Ilmu Komputer</div>
                                 <div className="upnvj-badge-text-sub">Universitas Pembangunan Nasional Veteran Jakarta</div>
                             </div>
                         </div>
-                    </div> */}
+                    </div>
                 </div>
 
                 {/* ── RIGHT PANEL ── */}
@@ -507,9 +505,7 @@ export default function Login({
                         {/* Mobile logo */}
                         <div className="mobile-logo">
                             <div className="mobile-logo-icon">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
+                                <img src="/logo-upnvj.png" alt="Logo UPNVJ" />
                             </div>
                             <span className="mobile-logo-name">LENTERA</span>
                             <span className="mobile-logo-sub">Layanan Elektronik Tugas Akhir Terintegrasi</span>

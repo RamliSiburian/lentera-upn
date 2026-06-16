@@ -7,8 +7,8 @@
         <title inertia>{{ config('app.name', 'UPNVJ - Lentera') }}</title>
 
         <!-- Favicon UPNVJ -->
-        <link rel="icon" type="image/svg+xml" href="/logo-upnvj.svg">
-        <link rel="shortcut icon" href="/logo-upnvj.svg">
+        <link rel="icon" type="image/png" href="/logo-upnvj.png">
+        <link rel="shortcut icon" href="/logo-upnvj.png">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

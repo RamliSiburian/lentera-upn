@@ -66,7 +66,7 @@
 {{-- ── KOP LAPORAN ── --}}
 <div class="header">
     <div class="header-logo">
-        <img src="{{ public_path('logo-upnvj.svg') }}" alt="Logo UPNVJ" />
+        <img src="{{ public_path('logo-upnvj.png') }}" alt="Logo UPNVJ" />
     </div>
     <div class="header-text">
         <p class="inst-name">FAKULTAS ILMU KOMPUTER</p>
