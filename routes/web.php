@@ -126,6 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/judul/{id}', [MhsJudulController::class, 'destroy'])->name('mahasiswa.judul.destroy');
         Route::post('/judul/{id}/submit', [MhsJudulController::class, 'submit'])->name('mahasiswa.judul.submit');
         Route::post('/judul/{id}/pembimbing', [MhsJudulController::class, 'requestPembimbing'])->name('mahasiswa.judul.pembimbing');
+        Route::post('/judul/{id}/pembimbing/replace', [MhsJudulController::class, 'replacePembimbing'])->name('mahasiswa.judul.pembimbing.replace');
         Route::post('/judul/{id}/revisi', [MhsJudulController::class, 'requestRevisi'])->name('mahasiswa.judul.revisi');
         Route::get('/judul/{konsentrasiId}/available-dosen', [MhsJudulController::class, 'availableDosen'])->name('mahasiswa.judul.available-dosen');
 

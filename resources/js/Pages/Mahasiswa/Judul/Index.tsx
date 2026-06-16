@@ -430,6 +430,9 @@ export default function Index({ juduls, konsentrasis }: Props) {
     const { data, setData, post, put, processing, reset } = useForm({ judul: '', konsentrasi_id: '', deskripsi: '', dokumen: null as File | null });
     const pembimbingForm = useForm({ dosen_id_1: '', dosen_id_2: '' });
     const revisiForm = useForm({ judul_baru: '', alasan_revisi: '', dokumen: null as File | null });
+    const replaceForm = useForm({ dosen_id: '', urutan: '' });
+    // { judulId, urutan, dosenLama } — mana pembimbing yang akan diganti
+    const [replaceModal, setReplaceModal] = useState<{ judulId: string; urutan: string; dosenLama: string; konsentrasiId: string } | null>(null);
 
     const handleOpenRevisi = (j: Judul) => {
         revisiForm.setData({
@@ -458,6 +461,20 @@ export default function Index({ juduls, konsentrasis }: Props) {
     };
     const handleEdit = (j: Judul) => { setData({ judul: j.judul, konsentrasi_id: j.konsentrasi_id || j.konsentrasi?.id || '', deskripsi: j.deskripsi || '', dokumen: null }); setEditingId(j.id); setShowForm(true); };
     const handleLoadDosen = async (konsentrasiId: string) => { const res = await fetch(route('mahasiswa.judul.available-dosen', konsentrasiId)); const d = await res.json(); setAvailableDosens(d); };
+
+    const handleOpenReplaceModal = async (judulId: string, urutan: string, dosenLama: string, konsentrasiId: string) => {
+        setReplaceModal({ judulId, urutan, dosenLama, konsentrasiId });
+        replaceForm.setData({ dosen_id: '', urutan });
+        await handleLoadDosen(konsentrasiId);
+    };
+
+    const handleReplaceSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!replaceModal) return;
+        replaceForm.post(route('mahasiswa.judul.pembimbing.replace', replaceModal.judulId), {
+            onSuccess: () => { setReplaceModal(null); replaceForm.reset(); }
+        });
+    };
 
     const hasActiveJudul = juduls.some(j => !['rejected', 'rejected_kaprodi'].includes(j.status));
     const getPembimbingProgress = (j: Judul) => {
@@ -647,10 +664,21 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                                         <div className="pembimbing-avatar">{p.urutan === 'pembimbing_utama' ? 'P1' : 'P2'}</div>
                                                         <span className="pembimbing-name">{p.dosen?.user?.name || '-'}</span>
                                                     </div>
-                                                    <span className={`status-badge ${pembimbingBadgeClass(p.status)}`} style={{ fontSize: '0.625rem' }}>
-                                                        <span className="status-badge-dot" />
-                                                        {pembimbingStatusLabel(p.status)}
-                                                    </span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <span className={`status-badge ${pembimbingBadgeClass(p.status)}`} style={{ fontSize: '0.625rem' }}>
+                                                            <span className="status-badge-dot" />
+                                                            {pembimbingStatusLabel(p.status)}
+                                                        </span>
+                                                        {/* Tombol Ganti — hanya muncul jika pembimbing ditolak & judul approved */}
+                                                        {p.status === 'rejected' && j.status === 'approved' && (
+                                                            <button
+                                                                onClick={() => handleOpenReplaceModal(j.id, p.urutan, p.dosen?.user?.name || '-', j.konsentrasi?.id || '')}
+                                                                style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 6, background: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', cursor: 'pointer', fontWeight: 600 }}
+                                                            >
+                                                                Ganti
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -674,12 +702,16 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                                 </button>
                                             </>
                                         )}
-                                        {j.status === 'approved' && (!j.pembimbing || j.pembimbing.length === 0) && (
+                                        {/* Pilih Pembimbing: muncul saat belum ada pembimbing ATAU semua pembimbing ditolak */}
+                                        {j.status === 'approved' && (
+                                            (!j.pembimbing || j.pembimbing.length === 0 ||
+                                                j.pembimbing.every(p => p.status === 'rejected')
+                                            ) && (
                                             <button className="act-btn act-btn-primary" onClick={() => { setShowPembimbingModal(j.id); handleLoadDosen(j.konsentrasi?.id); }}>
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                                 Pilih Pembimbing
                                             </button>
-                                        )}
+                                        ))}
                                         {['rejected', 'rejected_kaprodi'].includes(j.status) && (
                                             <button className="act-btn act-btn-ghost" onClick={() => handleEdit(j)}>
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -846,6 +878,78 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                     <button type="button" className="act-btn act-btn-ghost" onClick={() => { setShowRevisiModal(null); revisiForm.reset(); }}>Batal</button>
                                     <button type="submit" disabled={revisiForm.processing} className="act-btn act-btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
                                         {revisiForm.processing ? 'Mengirim...' : 'Kirim Pengajuan Revisi'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal Ganti Pembimbing */}
+                {replaceModal && (
+                    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setReplaceModal(null); replaceForm.reset(); } }}>
+                        <div className="modal-box modal-md">
+                            <div className="modal-head">
+                                <div>
+                                    <div className="modal-title">Ganti Pembimbing {replaceModal.urutan === 'pembimbing_utama' ? '1' : '2'}</div>
+                                    <div className="modal-title-sub">Mengganti <strong>{replaceModal.dosenLama}</strong> yang menolak. Pilih dosen pengganti.</div>
+                                </div>
+                                <button className="modal-close" onClick={() => { setReplaceModal(null); replaceForm.reset(); }}>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleReplaceSubmit}>
+                                <div className="modal-body">
+                                    {availableDosens.length === 0 ? (
+                                        <p style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: '0.875rem', padding: '1.5rem 0' }}>Memuat daftar dosen...</p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {availableDosens.map(d => (
+                                                <label
+                                                    key={d.id}
+                                                    className="dosen-option"
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        border: replaceForm.data.dosen_id === d.id ? '1.5px solid var(--orange)' : '1.5px solid var(--border)',
+                                                        background: replaceForm.data.dosen_id === d.id ? 'rgba(242,101,34,0.04)' : 'var(--surface)',
+                                                        cursor: d.sisa_kuota <= 0 ? 'not-allowed' : 'pointer',
+                                                        opacity: d.sisa_kuota <= 0 ? 0.5 : 1,
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                                                        <input
+                                                            type="radio"
+                                                            name="replace_dosen"
+                                                            value={d.id}
+                                                            disabled={d.sisa_kuota <= 0}
+                                                            checked={replaceForm.data.dosen_id === d.id}
+                                                            onChange={() => replaceForm.setData('dosen_id', d.id)}
+                                                            style={{ accentColor: 'var(--orange)' }}
+                                                        />
+                                                        <div>
+                                                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-1)' }}>{d.nama}</div>
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>NIDN: {d.nidn}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right', fontSize: '0.7rem' }}>
+                                                        <span style={{ color: d.sisa_kuota > 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                                                            {d.sisa_kuota > 0 ? `${d.sisa_kuota} slot` : 'Penuh'}
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="act-btn act-btn-ghost" onClick={() => { setReplaceModal(null); replaceForm.reset(); }}>Batal</button>
+                                    <button
+                                        type="submit"
+                                        disabled={replaceForm.processing || !replaceForm.data.dosen_id}
+                                        className="act-btn act-btn-primary"
+                                        style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+                                    >
+                                        {replaceForm.processing ? 'Mengirim...' : 'Konfirmasi Ganti'}
                                     </button>
                                 </div>
                             </form>

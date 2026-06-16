@@ -208,6 +208,58 @@ class JudulController extends Controller
         return redirect()->route('mahasiswa.judul')->with('success', 'Permintaan pembimbing berhasil diajukan.');
     }
 
+    /**
+     * Ganti pembimbing yang ditolak dengan dosen baru.
+     * Hanya mengganti record yang statusnya 'rejected', pembimbing yang sudah accepted tidak tersentuh.
+     */
+    public function replacePembimbing(Request $request, $id, \App\Services\ApprovalService $approvalService)
+    {
+        $mahasiswa = $this->getMahasiswa();
+        $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)
+            ->where('status', 'approved')
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'dosen_id'  => 'required|uuid|exists:dosen,id',
+            'urutan'    => 'required|in:pembimbing_utama,pembimbing_pendamping',
+        ]);
+
+        $dosenBaru = Dosen::findOrFail($validated['dosen_id']);
+        if ($dosenBaru->kategori === 'asisten ahli') {
+            return back()->with('error', 'Dosen dengan kategori Asisten Ahli tidak dapat dipilih sebagai pembimbing.');
+        }
+
+        // Pastikan dosen ini tidak sudah menjadi pembimbing lain di judul yang sama (yang masih aktif)
+        $sudahJadiPembimbing = Pembimbing::where('mahasiswa_id', $mahasiswa->id)
+            ->where('dosen_id', $validated['dosen_id'])
+            ->whereNotIn('status', ['rejected'])
+            ->exists();
+
+        if ($sudahJadiPembimbing) {
+            return back()->with('error', 'Dosen ini sudah menjadi pembimbing Anda.');
+        }
+
+        // Hapus PERMANEN (forceDelete) pembimbing yang ditolak dengan urutan yang sesuai.
+        // Tidak bisa pakai delete() biasa karena Pembimbing menggunakan SoftDeletes,
+        // dan unique constraint (mahasiswa_id, urutan) akan tetap dilanggar oleh record soft-deleted.
+        Pembimbing::where('mahasiswa_id', $mahasiswa->id)
+            ->where('urutan', $validated['urutan'])
+            ->where('status', 'rejected')
+            ->forceDelete();
+
+        $firstStep = $approvalService->getFirstStep('pembimbing') ?? 'kaprodi_approval';
+
+        Pembimbing::create([
+            'mahasiswa_id' => $mahasiswa->id,
+            'dosen_id'     => $validated['dosen_id'],
+            'urutan'       => $validated['urutan'],
+            'status'       => $firstStep,
+            'requested_at' => now(),
+        ]);
+
+        return redirect()->route('mahasiswa.judul')->with('success', 'Pembimbing berhasil diganti. Menunggu persetujuan Kaprodi.');
+    }
+
     public function requestRevisi(Request $request, $id)
     {
         $mahasiswa = $this->getMahasiswa();

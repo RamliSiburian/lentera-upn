@@ -119,19 +119,25 @@ class BimbinganController extends Controller
         // Step yang menjadi tanggung jawab dosen (dari approval config)
         $dosenSteps = $approvalService->getStepsForRole('pembimbing', 'dosen');
         if (empty($dosenSteps)) {
-            $dosenSteps = ['dosen_approval', 'requested']; // fallback
+            $dosenSteps = ['dosen_approval'];
         }
 
         $pembimbing = Pembimbing::where('dosen_id', $dosen->id)
             ->whereIn('status', $dosenSteps)
             ->findOrFail($id);
 
-        $pembimbing->update([
-            'status'      => 'approved',
-            'dosen_acc_at' => now(),
-        ]);
+        // processApproval menentukan next step dari ApprovalConfig.
+        // Karena dosen adalah step terakhir, next step = null → status = 'approved'.
+        $approvalService->processApproval(
+            $pembimbing,
+            'pembimbing',
+            'approved',
+            ['actor_id' => Auth::id()],
+            'pembimbing_approval_log',
+            'pembimbing_id'
+        );
 
-        return redirect()->route('dosen.bimbingan')->with('success', 'Pembimbing diterima.');
+        return redirect()->route('dosen.bimbingan')->with('success', 'Pembimbing diterima. Mahasiswa dapat memulai bimbingan.');
     }
 
     public function rejectPembimbing(Request $request, $id, ApprovalService $approvalService)
@@ -140,7 +146,7 @@ class BimbinganController extends Controller
 
         $dosenSteps = $approvalService->getStepsForRole('pembimbing', 'dosen');
         if (empty($dosenSteps)) {
-            $dosenSteps = ['dosen_approval', 'requested'];
+            $dosenSteps = ['dosen_approval'];
         }
 
         $pembimbing = Pembimbing::where('dosen_id', $dosen->id)
@@ -149,12 +155,21 @@ class BimbinganController extends Controller
 
         $validated = $request->validate(['catatan' => 'required|string']);
 
-        $pembimbing->update([
-            'status'           => 'rejected',
-            'keterangan_tolak' => $validated['catatan'],
-        ]);
+        $pembimbing->keterangan_tolak = $validated['catatan'];
 
-        return redirect()->route('dosen.bimbingan')->with('success', 'Pembimbing ditolak.');
+        $approvalService->processApproval(
+            $pembimbing,
+            'pembimbing',
+            'rejected',
+            [
+                'actor_id' => Auth::id(),
+                'catatan'  => $validated['catatan'],
+            ],
+            'pembimbing_approval_log',
+            'pembimbing_id'
+        );
+
+        return redirect()->route('dosen.bimbingan')->with('success', 'Konfirmasi pembimbing ditolak.');
     }
 
     public function approveBimbingan(Request $request, $id)

@@ -63,8 +63,14 @@ class JudulController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function index(ApprovalService $approvalService)
     {
-        $prodiIds    = $this->getKaprodiProdiIds();
+        $prodiIds     = $this->getKaprodiProdiIds();
         $allowedSteps = $this->getAllowedSteps($approvalService);
+
+        // Step pembimbing yang bisa diaksi kaprodi
+        $pembimbingSteps = $approvalService->getStepsForRole('pembimbing', 'k.prodi');
+        if (empty($pembimbingSteps)) {
+            $pembimbingSteps = ['requested', 'verified_admin', 'kaprodi_approval'];
+        }
 
         // Status yang kaprodi bisa aksi + approved (untuk histori)
         $filterStatuses = array_unique(array_merge($allowedSteps, ['approved']));
@@ -95,9 +101,10 @@ class JudulController extends Controller
             ->get(['id', 'nama', 'jenjang', 'kode']);
 
         return Inertia::render('Kaprodi/Judul/Index', [
-            'juduls'        => $juduls,
-            'pendingSteps'  => $allowedSteps,
-            'managedProdis' => $managedProdis, // opsional: info di header halaman
+            'juduls'          => $juduls,
+            'pendingSteps'    => $allowedSteps,
+            'pembimbingSteps' => $pembimbingSteps,
+            'managedProdis'   => $managedProdis,
         ]);
     }
 
@@ -167,20 +174,26 @@ class JudulController extends Controller
         $prodiIds        = $this->getKaprodiProdiIds();
         $pembimbingSteps = $approvalService->getStepsForRole('pembimbing', 'k.prodi');
         if (empty($pembimbingSteps)) {
-            $pembimbingSteps = ['requested', 'verified_admin'];
+            $pembimbingSteps = ['kaprodi_approval'];
         }
 
         $pembimbing = Pembimbing::whereIn('status', $pembimbingSteps)
             ->whereHas('mahasiswa', fn($q) => $q->whereIn('prodi_id', $prodiIds))
             ->findOrFail($id);
 
-        $pembimbing->update([
-            'status'            => 'approved',
-            'final_approved_by' => Auth::id(),
-            'final_approved_at' => now(),
-        ]);
+        // Gunakan ApprovalService agar next step dihitung dari ApprovalConfig.
+        // Jika ada step 'dosen_approval' sesudah kaprodi, status akan → dosen_approval.
+        // Jika tidak ada step berikutnya, status akan → approved.
+        $approvalService->processApproval(
+            $pembimbing,
+            'pembimbing',
+            'approved',
+            ['actor_id' => Auth::id()],
+            'pembimbing_approval_log',
+            'pembimbing_id'
+        );
 
-        return redirect()->route('kaprodi.judul')->with('success', 'Pembimbing berhasil disetujui.');
+        return redirect()->route('kaprodi.judul')->with('success', 'Pembimbing berhasil disetujui. Menunggu konfirmasi dosen.');
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -202,12 +215,21 @@ class JudulController extends Controller
             ->whereHas('mahasiswa', fn($q) => $q->whereIn('prodi_id', $prodiIds))
             ->findOrFail($id);
 
-        $pembimbing->update([
-            'status'           => 'rejected',
-            'keterangan_tolak' => $validated['catatan'],
-        ]);
+        $pembimbing->keterangan_tolak = $validated['catatan'];
 
-        return redirect()->route('kaprodi.judul')->with('success', 'Pembimbing berhasil ditolak.');
+        $approvalService->processApproval(
+            $pembimbing,
+            'pembimbing',
+            'rejected',
+            [
+                'actor_id' => Auth::id(),
+                'catatan'  => $validated['catatan'],
+            ],
+            'pembimbing_approval_log',
+            'pembimbing_id'
+        );
+
+        return redirect()->route('kaprodi.judul')->with('success', 'Pembimbing ditolak.');
     }
 
     public function reviewRevisi(Request $request, $id)
