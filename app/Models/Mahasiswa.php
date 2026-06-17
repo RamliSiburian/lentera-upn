@@ -24,10 +24,12 @@ class Mahasiswa extends Model
         'angkatan',
         'status',
         'no_hp',
+        'tanggal_lulus',
     ];
 
     protected $casts = [
         'angkatan' => 'integer',
+        'tanggal_lulus' => 'date',
     ];
 
     protected static function boot()

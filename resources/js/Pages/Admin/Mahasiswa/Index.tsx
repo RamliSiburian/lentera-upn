@@ -8,6 +8,7 @@ interface Prodi { id: string; kode: string; nama: string; jenjang: string; }
 interface Mahasiswa {
     id: string; nim: string; prodi_id: string | null; angkatan: number;
     no_hp: string; status: string; user: User; prodi: Prodi | null;
+    tanggal_lulus?: string | null;
 }
 interface Props { mahasiswa: Mahasiswa[]; prodis: Prodi[]; }
 
@@ -143,7 +144,14 @@ export default function MahasiswaIndex({ mahasiswa, prodis }: Props) {
                 )}
               </TableCell>
               <TableCell className="text-gray-600">{m.angkatan}</TableCell>
-              <TableCell><Badge color={statusBadge(m.status) as any} dot>{statusLabel(m.status)}</Badge></TableCell>
+              <TableCell>
+                <Badge color={statusBadge(m.status) as any} dot>{statusLabel(m.status)}</Badge>
+                {m.status === 'lulus' && m.tanggal_lulus && (
+                  <p className="text-[10px] text-gray-500 mt-1 font-medium">
+                    Lulus: {new Date(m.tanggal_lulus).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <button onClick={() => openEdit(m)} className="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Edit">

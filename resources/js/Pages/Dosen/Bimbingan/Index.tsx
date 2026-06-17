@@ -78,7 +78,7 @@ export default function Index({ pembimbings, dosen, dosenPendingSteps = ['dosen_
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <Badge color="indigo">Pembimbing {p.urutan}</Badge>
-                                                    <Badge color={p.status === 'approved' ? 'green' : p.status === 'rejected' ? 'red' : p.status === 'dosen_approval' ? 'orange' : 'yellow'}>{{ approved: 'Diterima', rejected: 'Ditolak', dosen_approval: 'Konfirmasi Diperlukan', kaprodi_approval: 'Menunggu Kaprodi', requested: 'Menunggu' }[p.status] || p.status}</Badge>
+                                                    <Badge color={p.status === 'approved' ? 'green' : p.status === 'rejected' ? 'red' : p.status === 'dosen_approval' ? 'orange' : 'yellow'}>{{ approved: 'Diterima', rejected: 'Ditolak', dosen_approval: 'Konfirmasi Diperlukan', kaprodi_approval: 'Menunggu Kaprodi', verified_admin: 'Menunggu Verifikasi Admin', requested: 'Menunggu Verifikasi' }[p.status] || p.status}</Badge>
                                                     {hasPendingBimbingan && <Badge color="indigo" dot>Menunggu Aksi</Badge>}
                                                 </div>
                                                 <h3 className="font-semibold text-gray-900 line-clamp-1">{p.judulPengajuan.judul}</h3>

@@ -90,7 +90,7 @@ class UjianController extends Controller
 
             $hasSubmitted = $pengajuanUjian->where('tahapan_id', $tahapan->id)->count() > 0;
             $hasApproved = $pengajuanUjian->where('tahapan_id', $tahapan->id)
-                ->where('status', 'approved')->count() > 0;
+                ->whereIn('status', ['approved', 'selesai'])->count() > 0;
             $hasPending = $pengajuanUjian->where('tahapan_id', $tahapan->id)
                 ->whereIn('status', ['submitted', 'reviewed', 'menunggu_penguji'])->count() > 0;
 
@@ -193,6 +193,47 @@ class UjianController extends Controller
             'keterangan'   => $request->keterangan,
             'submitted_at' => now(),
         ]);
+
+        // Salin penguji dari ujian sebelumnya secara otomatis (jika ada)
+        $prevUjian = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
+            ->where('id', '!=', $ujian->id)
+            ->whereHas('penguji')
+            ->latest()
+            ->first();
+
+        if ($prevUjian) {
+            $adminId = \App\Models\User::where('role', 'admin')->first()?->id ?? $user->id;
+            
+            $prevPengujis = \App\Models\PengujiUjian::where('pengajuan_ujian_id', $prevUjian->id)
+                ->orderBy('urutan')
+                ->get();
+
+            foreach ($prevPengujis as $p) {
+                \App\Models\PengujiUjian::create([
+                    'pengajuan_ujian_id' => $ujian->id,
+                    'dosen_id'           => $p->dosen_id,
+                    'urutan'             => $p->urutan,
+                    'assigned_by'        => $adminId,
+                    'assigned_at'        => now(),
+                    'penguji_acc'        => 'pending',
+                ]);
+
+                // Kirim notifikasi ke dosen penguji
+                $dosenObj = \App\Models\Dosen::find($p->dosen_id);
+                if ($dosenObj && $dosenObj->user_id) {
+                    \App\Services\NotifikasiService::send(
+                        $dosenObj->user_id,
+                        'Penugasan Penguji Ujian',
+                        'Anda ditugaskan secara otomatis sebagai Penguji ' . $p->urutan . ' untuk ujian ' . ($tahapan->nama_tahapan ?? 'Ujian') . ' mahasiswa ' . ($user->name ?? '-') . '.',
+                        'ujian',
+                        $ujian->id
+                    );
+                }
+            }
+
+            // Status menjadi 'menunggu_penguji' — menunggu semua dosen penguji konfirmasi
+            $ujian->update(['status' => 'menunggu_penguji']);
+        }
 
         $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id')->toArray();
         \App\Services\NotifikasiService::sendBulk(

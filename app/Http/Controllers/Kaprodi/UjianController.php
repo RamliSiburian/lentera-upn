@@ -101,7 +101,7 @@ class UjianController extends Controller
         $pengajuan->load('mahasiswa.user', 'tahapan');
 
         if ($request->status === 'approved') {
-            $pengajuan->update(['status' => 'approved']);
+            $pengajuan->update(['status' => 'selesai']);
 
             // Cek apakah tahapan ini adalah tahapan terakhir (urutan terbesar) yang aktif
             $lastStage = \App\Models\TahapanConfig::where('is_active', true)
@@ -111,7 +111,10 @@ class UjianController extends Controller
             if ($lastStage && $pengajuan->tahapan_id === $lastStage->id) {
                 $mahasiswa = \App\Models\Mahasiswa::find($pengajuan->mahasiswa_id);
                 if ($mahasiswa) {
-                    $mahasiswa->update(['status' => 'lulus']);
+                    $mahasiswa->update([
+                        'status' => 'lulus',
+                        'tanggal_lulus' => now(),
+                    ]);
                 }
             }
 

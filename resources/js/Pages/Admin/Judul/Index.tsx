@@ -14,9 +14,9 @@ interface Judul {
     konsentrasi: Konsentrasi; mahasiswa: Mahasiswa; pembimbing: PembimbingData[]; created_at: string;
 }
 
-interface Props { juduls: Judul[]; pendingSteps?: string[]; [key: string]: any; }
+interface Props { juduls: Judul[]; pendingSteps?: string[]; pembimbings?: any[]; pembimbingSteps?: string[]; [key: string]: any; }
 
-export default function Index({ juduls, pendingSteps = [] }: Props) {
+export default function Index({ juduls, pendingSteps = [], pembimbings = [], pembimbingSteps = [] }: Props) {
     const [rejectId, setRejectId] = useState<string | null>(null);
     const [rejectModal, setRejectModal] = useState(false);
     const [search, setSearch] = useState('');
@@ -26,6 +26,11 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
     const handleVerify = (id: string) => { router.post(route('admin.judul.verify', id)); };
     const handleReject = (id: string) => { rejectForm.post(route('admin.judul.reject', id), { onSuccess: () => { setRejectId(null); setRejectModal(false); } }); };
     const handleVerifyPembimbing = (pembimbingId: string) => { router.post(route('admin.pembimbing.verify', pembimbingId)); };
+    const handleRejectPembimbing = (pembimbingId: string) => { rejectPembimbingForm.post(route('admin.pembimbing.reject', pembimbingId), { onSuccess: () => { setRejectPembimbingId(null); setRejectPembimbingModal(false); rejectPembimbingForm.reset(); } }); };
+
+    const [rejectPembimbingId, setRejectPembimbingId] = useState<string | null>(null);
+    const [rejectPembimbingModal, setRejectPembimbingModal] = useState(false);
+    const rejectPembimbingForm = useForm({ catatan: '' });
 
     const statusColor = (s: string): string => ({
         draft: 'gray', submitted: 'blue',
@@ -43,12 +48,12 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
         'rejected_kaprodi': 'Ditolak Kaprodi',
     } as Record<string, string>)[s] ?? s;
     const pembimbingStatusColor = (s: string) => ({
-        requested: 'yellow', verified_admin: 'blue', approved: 'green', rejected: 'red',
-        kaprodi_approval: 'yellow',
+        requested: 'yellow', verified_admin: 'yellow', approved: 'green', rejected: 'red',
+        kaprodi_approval: 'indigo', dosen_approval: 'purple',
     }[s] || 'gray');
     const pembimbingStatusLabel = (s: string) => ({
-        requested: 'Diajukan', verified_admin: 'Diverifikasi', approved: 'Diterima', rejected: 'Ditolak',
-        kaprodi_approval: 'Menunggu Kaprodi',
+        requested: 'Menunggu Verifikasi', verified_admin: 'Menunggu Verifikasi Admin', approved: 'Diterima', rejected: 'Ditolak',
+        kaprodi_approval: 'Menunggu Kaprodi', dosen_approval: 'Menunggu Konfirmasi Dosen',
     }[s] || s);
     const canVerifyPembimbing = (p: any) => {
         if (p.status === 'approved' || p.status === 'rejected') return false;
@@ -62,7 +67,9 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
     // Pending = status yang masih dalam alur approval (belum final)
     const isRejected = (s: string) => s === 'rejected' || s.startsWith('rejected');
     const isApproved = (s: string) => s === 'approved';
-    const isPending  = (s: string) => !isRejected(s) && !isApproved(s) && s !== 'draft';
+    const isPending = (s: string) => !isRejected(s) && !isApproved(s) && s !== 'draft';
+    console.log({ juduls, pendingSteps });
+
 
     const filtered = juduls.filter(j => {
         const name = getMhsName(j).toLowerCase();
@@ -81,12 +88,12 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
         rejected: juduls.filter(j => isRejected(j.status)).length,
     };
 
-    console.log({juduls});
-    
+    console.log({ juduls });
+
 
     return (
         <AppLayout title="Verifikasi Judul">
-            <PageHeader 
+            <PageHeader
                 breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Verifikasi Judul' }]}
             />
             <FlashMessage message={(usePage().props as any).flash?.success} />
@@ -178,6 +185,56 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
                 </div>
             )}
 
+            {/* ── SECTION: Verifikasi Pembimbing ───────────────────────────── */}
+            {pembimbings.length > 0 && (
+                <div className="mt-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <h2 className="text-base font-semibold text-gray-800">Verifikasi Pembimbing</h2>
+                        <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-600">{pembimbings.length}</span>
+                    </div>
+                    <div className="space-y-3">
+                        {pembimbings.map((p: any) => (
+                            <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                                <div className="p-5">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                                                {p.urutan === 'pembimbing_utama' ? 'P1' : 'P2'}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-gray-900 text-sm">{p.dosen?.user?.name || '-'}</p>
+                                                <p className="text-xs text-gray-400 font-mono">{p.dosen?.nidn}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge color={pembimbingStatusColor(p.status)} dot>{pembimbingStatusLabel(p.status)}</Badge>
+                                            <Button size="sm" variant="success" onClick={() => handleVerifyPembimbing(p.id)}>Verifikasi</Button>
+                                            <Button size="sm" variant="danger" onClick={() => { setRejectPembimbingId(p.id); setRejectPembimbingModal(true); }}>Tolak</Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Info mahasiswa & judul */}
+                                    <div className="mt-3 pt-3 border-t border-gray-50 space-y-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-400">Mahasiswa:</span>
+                                            <span className="text-xs font-medium text-gray-700">{p.mahasiswa?.user?.name || '-'}</span>
+                                            <span className="text-xs text-gray-300">•</span>
+                                            <span className="text-xs font-mono text-gray-500">{p.mahasiswa?.nim}</span>
+                                        </div>
+                                        {p.judul_pengajuan?.judul && (
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-xs text-gray-400 flex-shrink-0">Judul:</span>
+                                                <span className="text-xs text-gray-600 leading-relaxed line-clamp-2">{p.judul_pengajuan.judul}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <Modal show={rejectModal} onClose={() => setRejectModal(false)} title="Tolak Pengajuan Judul" maxWidth="max-w-md">
                 <div className="space-y-4">
                     <p className="text-sm text-gray-500">Berikan alasan penolakan untuk pengajuan judul ini.</p>
@@ -188,6 +245,20 @@ export default function Index({ juduls, pendingSteps = [] }: Props) {
                     <div className="flex justify-end gap-3 pt-2">
                         <Button variant="secondary" onClick={() => setRejectModal(false)}>Batal</Button>
                         <Button variant="danger" onClick={() => rejectId && handleReject(rejectId)}>Tolak Pengajuan</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal show={rejectPembimbingModal} onClose={() => setRejectPembimbingModal(false)} title="Tolak Pembimbing" maxWidth="max-w-md">
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-500">Berikan alasan penolakan untuk pembimbing ini.</p>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Catatan Penolakan</label>
+                        <textarea value={rejectPembimbingForm.data.catatan} onChange={e => rejectPembimbingForm.setData('catatan', e.target.value)} placeholder="Tuliskan alasan penolakan..." rows={3} className="w-full border rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:bg-white transition-all duration-200 outline-none resize-none" required />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="secondary" onClick={() => setRejectPembimbingModal(false)}>Batal</Button>
+                        <Button variant="danger" onClick={() => rejectPembimbingId && handleRejectPembimbing(rejectPembimbingId)}>Tolak Pembimbing</Button>
                     </div>
                 </div>
             </Modal>

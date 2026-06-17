@@ -154,6 +154,21 @@ class NilaiController extends Controller
         // Update status pengajuan
         if ($request->status === 'approved') {
             $pengajuan->update(['status' => 'selesai']);
+
+            // Cek apakah tahapan ini adalah tahapan terakhir (urutan terbesar) yang aktif
+            $lastStage = \App\Models\TahapanConfig::where('is_active', true)
+                ->orderBy('urutan', 'desc')
+                ->first();
+
+            if ($lastStage && $pengajuan->tahapan_id === $lastStage->id) {
+                $mahasiswa = \App\Models\Mahasiswa::find($pengajuan->mahasiswa_id);
+                if ($mahasiswa) {
+                    $mahasiswa->update([
+                        'status' => 'lulus',
+                        'tanggal_lulus' => now(),
+                    ]);
+                }
+            }
         }
 
         $msg = $request->status === 'approved'

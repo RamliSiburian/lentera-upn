@@ -66,10 +66,10 @@ class JudulController extends Controller
         $prodiIds     = $this->getKaprodiProdiIds();
         $allowedSteps = $this->getAllowedSteps($approvalService);
 
-        // Step pembimbing yang bisa diaksi kaprodi
+        // Step pembimbing yang bisa diaksi kaprodi (hanya step kaprodi)
         $pembimbingSteps = $approvalService->getStepsForRole('pembimbing', 'k.prodi');
         if (empty($pembimbingSteps)) {
-            $pembimbingSteps = ['requested', 'verified_admin', 'kaprodi_approval'];
+            $pembimbingSteps = ['kaprodi_approval'];
         }
 
         // Status yang kaprodi bisa aksi + approved (untuk histori)
@@ -208,7 +208,7 @@ class JudulController extends Controller
         $prodiIds        = $this->getKaprodiProdiIds();
         $pembimbingSteps = $approvalService->getStepsForRole('pembimbing', 'k.prodi');
         if (empty($pembimbingSteps)) {
-            $pembimbingSteps = ['requested', 'verified_admin'];
+            $pembimbingSteps = ['kaprodi_approval'];
         }
 
         $pembimbing = Pembimbing::whereIn('status', $pembimbingSteps)

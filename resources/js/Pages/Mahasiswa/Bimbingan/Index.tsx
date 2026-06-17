@@ -3,7 +3,7 @@ import { useForm, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Modal, Button, Select, PageHeader, FlashMessage, Badge, EmptyState, Card } from '@/Components/UI';
 
-interface TahapanConfig { id: string; nama: string; nama_tahapan: string; urutan: number; tipe: string; }
+interface TahapanConfig { id: string; nama: string; nama_tahapan: string; urutan: number; tipe: string; is_eligible?: boolean; missing_prereq_name?: string | null; }
 interface BimbinganFile { id: string; nama_file: string; path_file: string; }
 interface Approval { id: string; status: string; catatan: string | null; file_revisi: string | null; pembimbing: { urutan: number; dosen: { nama: string } }; }
 interface Komentar { id: string; komentar: string; created_at: string; user: { name: string; role: string }; }
@@ -245,14 +245,21 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                     <option value="">Pilih Tahapan</option>
                                     {tahapanList.map(t => {
                                         const isApproved = approvedTahapanIds.includes(t.id);
+                                        const isDisabled = isApproved || t.is_eligible === false;
                                         return (
                                             <option
                                                 key={t.id}
                                                 value={t.id}
-                                                disabled={isApproved}
-                                                style={isApproved ? { color: '#aaa', backgroundColor: '#f5f5f5' } : {}}
+                                                disabled={isDisabled}
+                                                style={isDisabled ? { color: '#aaa', backgroundColor: '#f5f5f5' } : {}}
                                             >
-                                                {isApproved ? `✓ ${t.nama_tahapan} (Selesai)` : t.nama_tahapan}
+                                                {isApproved 
+                                                    ? `✓ ${t.nama_tahapan} (Selesai)` 
+                                                    : (t.is_eligible === false && t.missing_prereq_name
+                                                        ? `${t.nama_tahapan} (Harus menyelesaikan ${t.missing_prereq_name})`
+                                                        : t.nama_tahapan
+                                                      )
+                                                }
                                             </option>
                                         );
                                     })}
@@ -512,7 +519,7 @@ export default function Index({ bimbingans, judul, tahapanList, approvedTahapanI
                                                     </span>
 
                                                     {/* Tombol Upload Revisi jika rejected */}
-                                                    {isRejected && (
+                                                    {isRejected && mahasiswaStatus !== 'lulus' && (
                                                         <button
                                                             onClick={e => { e.stopPropagation(); setShowRevisiForm(b.id); }}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95"

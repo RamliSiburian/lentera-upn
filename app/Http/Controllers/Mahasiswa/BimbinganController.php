@@ -90,12 +90,6 @@ class BimbinganController extends Controller
                 ];
             });
 
-        // Only show bimbingan-type tahapan
-        $tahapanList = TahapanConfig::where('is_active', true)
-            ->where('tipe', 'bimbingan')
-            ->orderBy('urutan')
-            ->get();
-
         // Tahapan yang sudah pernah di-ACC
         $approvedTahapanIds = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
             ->where('status', 'approved')
@@ -104,6 +98,52 @@ class BimbinganController extends Controller
             ->unique()
             ->values()
             ->toArray();
+
+        // Ujian yang sudah disetujui (selesai)
+        $approvedUjianTahapanIds = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
+            ->whereIn('status', ['approved', 'selesai'])
+            ->pluck('tahapan_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $allApprovedTahapanIds = array_merge($approvedTahapanIds, $approvedUjianTahapanIds);
+
+        $allActiveTahapan = TahapanConfig::where('is_active', true)
+            ->orderBy('urutan')
+            ->get();
+
+        // Only show bimbingan-type tahapan and enrich with eligibility info
+        $tahapanList = TahapanConfig::where('is_active', true)
+            ->where('tipe', 'bimbingan')
+            ->orderBy('urutan')
+            ->get()
+            ->map(function ($t) use ($allActiveTahapan, $allApprovedTahapanIds, $approvedTahapanIds) {
+                $isApproved = in_array($t->id, $approvedTahapanIds);
+                $isEligible = true;
+                $missingPrereqName = null;
+
+                foreach ($allActiveTahapan as $prior) {
+                    if ($prior->urutan < $t->urutan) {
+                        if (!in_array($prior->id, $allApprovedTahapanIds)) {
+                            $isEligible = false;
+                            $missingPrereqName = $prior->nama_tahapan;
+                            break;
+                        }
+                    }
+                }
+
+                return [
+                    'id' => $t->id,
+                    'nama' => $t->nama_tahapan,
+                    'nama_tahapan' => $t->nama_tahapan,
+                    'urutan' => $t->urutan,
+                    'tipe' => $t->tipe,
+                    'is_approved' => $isApproved,
+                    'is_eligible' => $isEligible && !$isApproved,
+                    'missing_prereq_name' => $missingPrereqName,
+                ];
+            });
 
         // Cek apakah ada ujian yang memblokir
         $hasBlocking = $this->hasBlockingUjian($mahasiswa->id);
@@ -192,6 +232,40 @@ class BimbinganController extends Controller
             'tahapan_config_id' => 'required|uuid|exists:tahapan_config,id',
             'catatan_mhs' => 'nullable|string',
         ]);
+
+        $tahapan = TahapanConfig::findOrFail($validated['tahapan_config_id']);
+        if ($tahapan->tipe !== 'bimbingan' || !$tahapan->is_active) {
+            return back()->with('error', 'Tahapan bimbingan tidak valid.');
+        }
+
+        // Validate prerequisites
+        $allActiveTahapan = TahapanConfig::where('is_active', true)
+            ->orderBy('urutan')
+            ->get();
+
+        $approvedTahapanIds = Bimbingan::where('mahasiswa_id', $mahasiswa->id)
+            ->where('status', 'approved')
+            ->pluck('tahapan_id')
+            ->toArray();
+
+        $approvedUjianTahapanIds = PengajuanUjian::where('mahasiswa_id', $mahasiswa->id)
+            ->whereIn('status', ['approved', 'selesai'])
+            ->pluck('tahapan_id')
+            ->toArray();
+
+        $allApprovedTahapanIds = array_merge($approvedTahapanIds, $approvedUjianTahapanIds);
+
+        if (in_array($tahapan->id, $approvedTahapanIds)) {
+            return back()->with('error', 'Tahapan ini sudah disetujui (selesai).');
+        }
+
+        foreach ($allActiveTahapan as $prior) {
+            if ($prior->urutan < $tahapan->urutan) {
+                if (!in_array($prior->id, $allApprovedTahapanIds)) {
+                    return back()->with('error', "Anda harus menyelesaikan tahapan {$prior->nama_tahapan} terlebih dahulu.");
+                }
+            }
+        }
 
         // Handle file upload
         $file = $request->file('file');

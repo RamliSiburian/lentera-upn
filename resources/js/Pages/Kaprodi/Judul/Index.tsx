@@ -65,8 +65,8 @@ export default function Index({ juduls, pendingSteps = [], pembimbingSteps = [],
         'approved_kaprodi': 'Disetujui Kaprodi', 'kaprodi_approval': 'Menunggu Kaprodi',
         'rejected_kaprodi': 'Ditolak Kaprodi',
     } as Record<string, string>)[s] ?? s;
-    const pembimbingStatusColor = (s: string): string => ({ requested: 'yellow', 'verified_admin': 'blue', 'verified-admin': 'blue', 'kaprodi_approval': 'indigo', approved: 'green', rejected: 'red' } as Record<string, string>)[s] ?? 'gray';
-    const pembimbingStatusLabel = (s: string): string => ({ requested: 'Diajukan', 'verified_admin': 'Diverifikasi', 'verified-admin': 'Diverifikasi', 'kaprodi_approval': 'Menunggu Kaprodi', approved: 'Diterima', rejected: 'Ditolak' } as Record<string, string>)[s] ?? s;
+    const pembimbingStatusColor = (s: string): string => ({ requested: 'yellow', 'verified_admin': 'yellow', 'verified-admin': 'yellow', 'kaprodi_approval': 'indigo', 'dosen_approval': 'purple', approved: 'green', rejected: 'red' } as Record<string, string>)[s] ?? 'gray';
+    const pembimbingStatusLabel = (s: string): string => ({ requested: 'Menunggu Verifikasi', 'verified_admin': 'Menunggu Verifikasi Admin', 'verified-admin': 'Menunggu Verifikasi Admin', 'kaprodi_approval': 'Menunggu Kaprodi', 'dosen_approval': 'Menunggu Konfirmasi Dosen', approved: 'Diterima', rejected: 'Ditolak' } as Record<string, string>)[s] ?? s;
 
     return (
         <AppLayout title="Verifikasi Judul & Pembimbing">

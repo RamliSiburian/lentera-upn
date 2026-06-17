@@ -60,7 +60,12 @@ class JudulController extends Controller
 
         // Pembimbing yang butuh verifikasi admin:
         // Sama seperti judul, hanya tampilkan yang masih di step admin.
-        $pembimbings = Pembimbing::with(['mahasiswa.user', 'mahasiswa.prodi', 'dosen.user'])
+        $pembimbings = Pembimbing::with([
+                'mahasiswa.user',
+                'mahasiswa.prodi',
+                'dosen.user',
+                'judulPengajuan',
+            ])
             ->whereIn('status', $pembimbingSteps)
             ->orderBy('created_at', 'desc')
             ->get();

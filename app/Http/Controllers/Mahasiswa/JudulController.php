@@ -32,12 +32,17 @@ class JudulController extends Controller
         return Inertia::render('Mahasiswa/Judul/Index', [
             'juduls' => $juduls,
             'konsentrasis' => $konsentrasis,
+            'mahasiswaStatus' => $mahasiswa->status,
         ]);
     }
 
     public function store(Request $request)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus dan tidak dapat membuat pengajuan baru.');
+        }
 
         $validated = $request->validate([
             'judul' => 'required|string|max:255',
@@ -68,6 +73,11 @@ class JudulController extends Controller
     public function update(Request $request, $id)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus dan tidak dapat mengubah judul.');
+        }
+
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)->findOrFail($id);
 
         if (!in_array($judul->status, ['draft', 'rejected'])) {
@@ -95,19 +105,25 @@ class JudulController extends Controller
         return redirect()->route('mahasiswa.judul')->with('success', 'Judul berhasil diupdate.');
     }
 
-    public function submit($id, \App\Services\ApprovalService $approvalService)
+    public function submit($id)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus dan tidak dapat mengajukan judul.');
+        }
+
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)->findOrFail($id);
 
         if ($judul->status !== 'draft' && $judul->status !== 'rejected') {
             return back()->with('error', 'Judul tidak bisa diajukan.');
         }
 
-        $firstStep = $approvalService->getFirstStep('judul_pengajuan') ?? 'submitted';
-
+        // Status awal pengajuan selalu 'verified_admin' agar judul masuk antrian verifikasi admin.
+        // Step admin pada ApprovalConfig bisa opsional (admin boleh langsung meneruskan ke kaprodi),
+        // tetapi mahasiswa tetap harus melewati loket admin sebagai pintu masuk pertama.
         $judul->update([
-            'status' => $firstStep,
+            'status'       => 'verified_admin',
             'submitted_at' => now(),
         ]);
 
@@ -117,6 +133,11 @@ class JudulController extends Controller
     public function destroy($id)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus dan tidak dapat menghapus judul.');
+        }
+
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)->findOrFail($id);
 
         if ($judul->status !== 'draft') {
@@ -159,6 +180,11 @@ class JudulController extends Controller
     public function requestPembimbing(Request $request, $id, \App\Services\ApprovalService $approvalService)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus.');
+        }
+
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)
             ->where('status', 'approved') // changed from approved_kaprodi to approved because now it's fully approved
             ->findOrFail($id);
@@ -215,6 +241,11 @@ class JudulController extends Controller
     public function replacePembimbing(Request $request, $id, \App\Services\ApprovalService $approvalService)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus.');
+        }
+
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)
             ->where('status', 'approved')
             ->findOrFail($id);
@@ -263,6 +294,11 @@ class JudulController extends Controller
     public function requestRevisi(Request $request, $id)
     {
         $mahasiswa = $this->getMahasiswa();
+
+        if ($mahasiswa->status === 'lulus') {
+            return back()->with('error', 'Anda sudah lulus.');
+        }
+
         $mahasiswa->load('user');
         
         $judul = JudulPengajuan::where('mahasiswa_id', $mahasiswa->id)->findOrFail($id);

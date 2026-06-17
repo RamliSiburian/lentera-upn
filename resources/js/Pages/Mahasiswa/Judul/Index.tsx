@@ -14,7 +14,7 @@ interface Judul {
     revision_status: string | null; alasan_revisi: string | null; catatan_revisi_kaprodi: string | null;
     revision_submitted_at: string | null; revision_reviewed_at: string | null;
 }
-interface Props { juduls: Judul[]; konsentrasis: Konsentrasi[]; [key: string]: any; }
+interface Props { juduls: Judul[]; konsentrasis: Konsentrasi[]; mahasiswaStatus?: string; [key: string]: any; }
 
 const S = `
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -417,7 +417,7 @@ const S = `
     .dosen-option:hover { border-color: var(--orange-border); background: white; }
 `;
 
-export default function Index({ juduls, konsentrasis }: Props) {
+export default function Index({ juduls, konsentrasis, mahasiswaStatus = 'aktif' }: Props) {
     console.log({juduls});
     
     const { flash } = usePage().props as any;
@@ -485,8 +485,8 @@ export default function Index({ juduls, konsentrasis }: Props) {
     };
     const statusBadgeClass = (s: string) => ({ draft: 'badge-gray', submitted: 'badge-blue', verified_admin: 'badge-yellow', kaprodi_approval: 'badge-indigo', rejected: 'badge-red', approved: 'badge-green', rejected_kaprodi: 'badge-red' }[s] || 'badge-gray');
     const statusLabel = (s: string) => ({ draft: 'Draft', submitted: 'Diajukan', verified_admin: 'Diverifikasi Admin', kaprodi_approval: 'Menunggu Kaprodi', rejected: 'Ditolak', approved: 'Disetujui Kaprodi', rejected_kaprodi: 'Ditolak Kaprodi' }[s] || s);
-    const pembimbingBadgeClass = (s: string) => ({ requested: 'badge-yellow', verified_admin: 'badge-blue', kaprodi_approval: 'badge-indigo', approved: 'badge-green', rejected: 'badge-red' }[s] || 'badge-gray');
-    const pembimbingStatusLabel = (s: string) => ({ requested: 'Diajukan', verified_admin: 'Diverifikasi', kaprodi_approval: 'Menunggu Kaprodi', approved: 'Diterima', rejected: 'Ditolak' }[s] || s);
+    const pembimbingBadgeClass = (s: string) => ({ requested: 'badge-yellow', verified_admin: 'badge-yellow', kaprodi_approval: 'badge-indigo', dosen_approval: 'badge-purple', approved: 'badge-green', rejected: 'badge-red' }[s] || 'badge-gray');
+    const pembimbingStatusLabel = (s: string) => ({ requested: 'Menunggu Verifikasi', verified_admin: 'Menunggu Verifikasi Admin', kaprodi_approval: 'Menunggu Kaprodi', dosen_approval: 'Menunggu Konfirmasi Dosen', approved: 'Diterima', rejected: 'Ditolak' }[s] || s);
     const stepProgress = (j: Judul) => {
         const base = ({ draft: 0, submitted: 20, verified_admin: 40, kaprodi_approval: 40, approved: 60, rejected: 0, rejected_kaprodi: 0 }[j.status] || 0);
         if (base >= 60 && j.pembimbing && j.pembimbing.length > 0) return getPembimbingProgress(j);
@@ -516,7 +516,7 @@ export default function Index({ juduls, konsentrasis }: Props) {
                         <h1 className="ju-title">Pengajuan Judul Skripsi</h1>
                         <p className="ju-subtitle">Ajukan dan kelola judul skripsi Anda</p>
                     </div>
-                    {!showForm && !hasActiveJudul && (
+                    {!showForm && !hasActiveJudul && mahasiswaStatus !== 'lulus' && (
                         <button className="btn-new" onClick={() => { reset(); setEditingId(null); setShowForm(true); }}>
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                             Ajukan Judul Baru
@@ -542,10 +542,12 @@ export default function Index({ juduls, konsentrasis }: Props) {
                             </div>
                             <div className="empty-title">Belum ada pengajuan</div>
                             <div className="empty-desc">Klik tombol di bawah untuk memulai pengajuan skripsi</div>
-                            <button className="btn-new" style={{ margin: '0 auto' }} onClick={() => setShowForm(true)}>
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                Ajukan Judul
-                            </button>
+                            {mahasiswaStatus !== 'lulus' && (
+                                <button className="btn-new" style={{ margin: '0 auto' }} onClick={() => setShowForm(true)}>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    Ajukan Judul
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="judul-list">
@@ -670,7 +672,7 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                                             {pembimbingStatusLabel(p.status)}
                                                         </span>
                                                         {/* Tombol Ganti — hanya muncul jika pembimbing ditolak & judul approved */}
-                                                        {p.status === 'rejected' && j.status === 'approved' && (
+                                                        {p.status === 'rejected' && j.status === 'approved' && mahasiswaStatus !== 'lulus' && (
                                                             <button
                                                                 onClick={() => handleOpenReplaceModal(j.id, p.urutan, p.dosen?.user?.name || '-', j.konsentrasi?.id || '')}
                                                                 style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 6, background: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', cursor: 'pointer', fontWeight: 600 }}
@@ -685,46 +687,48 @@ export default function Index({ juduls, konsentrasis }: Props) {
                                     )}
 
                                     {/* Actions */}
-                                    <div className="judul-actions">
-                                        {j.status === 'draft' && (
-                                            <>
+                                    {mahasiswaStatus !== 'lulus' && (
+                                        <div className="judul-actions">
+                                            {j.status === 'draft' && (
+                                                <>
+                                                    <button className="act-btn act-btn-ghost" onClick={() => handleEdit(j)}>
+                                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        Edit
+                                                    </button>
+                                                    <button className="act-btn act-btn-success" onClick={() => router.post(route('mahasiswa.judul.submit', j.id))}>
+                                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                                        Ajukan
+                                                    </button>
+                                                    <button className="act-btn act-btn-danger" onClick={() => { if (confirm('Hapus judul ini?')) router.delete(route('mahasiswa.judul.destroy', j.id)); }}>
+                                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        Hapus
+                                                    </button>
+                                                </>
+                                            )}
+                                            {/* Pilih Pembimbing: muncul saat belum ada pembimbing ATAU semua pembimbing ditolak */}
+                                            {j.status === 'approved' && (
+                                                (!j.pembimbing || j.pembimbing.length === 0 ||
+                                                    j.pembimbing.every(p => p.status === 'rejected')
+                                                ) && (
+                                                <button className="act-btn act-btn-primary" onClick={() => { setShowPembimbingModal(j.id); handleLoadDosen(j.konsentrasi?.id); }}>
+                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                    Pilih Pembimbing
+                                                </button>
+                                            ))}
+                                            {['rejected', 'rejected_kaprodi'].includes(j.status) && (
                                                 <button className="act-btn act-btn-ghost" onClick={() => handleEdit(j)}>
+                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                    Ajukan Ulang
+                                                </button>
+                                            )}
+                                            {j.status === 'approved' && j.revision_status !== 'revision_pending' && (
+                                                <button className="act-btn act-btn-ghost" style={{ backgroundColor: '#fff7ed', color: '#c2410c', borderColor: '#ffedd5' }} onClick={() => handleOpenRevisi(j)}>
                                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                    Edit
+                                                    {j.revision_status === 'revision_rejected' ? 'Ajukan Revisi Ulang' : 'Ajukan Revisi Judul'}
                                                 </button>
-                                                <button className="act-btn act-btn-success" onClick={() => router.post(route('mahasiswa.judul.submit', j.id))}>
-                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                                    Ajukan
-                                                </button>
-                                                <button className="act-btn act-btn-danger" onClick={() => { if (confirm('Hapus judul ini?')) router.delete(route('mahasiswa.judul.destroy', j.id)); }}>
-                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    Hapus
-                                                </button>
-                                            </>
-                                        )}
-                                        {/* Pilih Pembimbing: muncul saat belum ada pembimbing ATAU semua pembimbing ditolak */}
-                                        {j.status === 'approved' && (
-                                            (!j.pembimbing || j.pembimbing.length === 0 ||
-                                                j.pembimbing.every(p => p.status === 'rejected')
-                                            ) && (
-                                            <button className="act-btn act-btn-primary" onClick={() => { setShowPembimbingModal(j.id); handleLoadDosen(j.konsentrasi?.id); }}>
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                Pilih Pembimbing
-                                            </button>
-                                        ))}
-                                        {['rejected', 'rejected_kaprodi'].includes(j.status) && (
-                                            <button className="act-btn act-btn-ghost" onClick={() => handleEdit(j)}>
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                                Ajukan Ulang
-                                            </button>
-                                        )}
-                                        {j.status === 'approved' && j.revision_status !== 'revision_pending' && (
-                                            <button className="act-btn act-btn-ghost" style={{ backgroundColor: '#fff7ed', color: '#c2410c', borderColor: '#ffedd5' }} onClick={() => handleOpenRevisi(j)}>
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                {j.revision_status === 'revision_rejected' ? 'Ajukan Revisi Ulang' : 'Ajukan Revisi Judul'}
-                                            </button>
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

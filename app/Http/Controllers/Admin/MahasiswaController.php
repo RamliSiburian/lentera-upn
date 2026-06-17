@@ -87,13 +87,23 @@ class MahasiswaController extends Controller
 
         $mhs->user->update($userUpdate);
 
-        $mhs->update([
+        $updateData = [
             'nim'      => $validated['nim'],
             'prodi_id' => $validated['prodi_id'],
             'angkatan' => $validated['angkatan'],
             'no_hp'    => $validated['no_hp'],
             'status'   => $validated['status'],
-        ]);
+        ];
+
+        if ($validated['status'] === 'lulus') {
+            if (!$mhs->tanggal_lulus) {
+                $updateData['tanggal_lulus'] = now();
+            }
+        } else {
+            $updateData['tanggal_lulus'] = null;
+        }
+
+        $mhs->update($updateData);
 
         return redirect()->back()->with('success', 'Mahasiswa berhasil diupdate.');
     }
