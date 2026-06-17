@@ -115,8 +115,19 @@ export default function Login({
                     color: #fff;
                     margin-bottom: 1rem;
                 }
+                .sub-title {
+                    font-family: 'Instrument Serif', serif;
+                    font-size: 1.8rem;
+                    line-height: 1.1;
+                    color: #fff;
+                    margin-bottom: 1rem;
+                }
 
                 .left-headline em {
+                    font-style: italic;
+                    color: #F26522;
+                }
+                .sub-title em {
                     font-style: italic;
                     color: #F26522;
                 }
@@ -453,8 +464,12 @@ export default function Login({
                             <span className="brand-badge-text">Portal Akademik</span>
                         </div>
                         <h1 className="left-headline">
-                            Sistem Terpadu<br /><em>Tugas Akhir</em><br />Digital
+                            Sistem LENTERA
                         </h1>
+                        <h6 className="sub-title">
+                            <em>(Layanan Elektronik Tugas Akhir Terintegrasi)</em>
+                        </h6>
+                       
                         <p className="left-sub">
                             Kelola bimbingan skripsi, pengajuan judul, dan sidang tugas akhir secara transparan dan efisien.
                         </p>
