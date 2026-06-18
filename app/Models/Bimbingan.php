@@ -61,4 +61,9 @@ class Bimbingan extends Model
     {
         return $this->hasMany(Komentar::class, 'bimbingan_id');
     }
+
+    public function files()
+    {
+        return $this->hasMany(BimbinganFile::class, 'bimbingan_id')->orderBy('created_at', 'asc');
+    }
 }

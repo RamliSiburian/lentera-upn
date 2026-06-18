@@ -50,7 +50,7 @@ class BimbinganController extends Controller
                     ->first();
 
                 $bimbingans = Bimbingan::where('mahasiswa_id', $p->mahasiswa_id)
-                    ->with(['tahapanConfig', 'approvals.pembimbing.dosen.user', 'komentar.user'])
+                    ->with(['tahapanConfig', 'approvals.pembimbing.dosen.user', 'komentar.user', 'files'])
                     ->orderBy('created_at', 'desc')
                     ->get()
                     ->map(function ($b) {
@@ -62,7 +62,11 @@ class BimbinganController extends Controller
                             'versi' => $b->bimbingan_ke,
                             'created_at' => $b->created_at,
                             'tahapan_config' => $b->tahapanConfig ? ['id' => $b->tahapanConfig->id, 'nama' => $b->tahapanConfig->nama_tahapan, 'nama_tahapan' => $b->tahapanConfig->nama_tahapan, 'urutan' => $b->tahapanConfig->urutan] : null,
-                            'files' => $b->file_path ? [['id' => '1', 'nama_file' => $b->judul_laporan, 'path_file' => $b->file_path]] : [],
+                            'files' => $b->files->map(fn($f) => [
+                                'id' => $f->id,
+                                'nama_file' => $f->judul_laporan,
+                                'path_file' => $f->file_path,
+                            ])->toArray(),
                             'approvals' => $b->approvals->map(function ($a) {
                                 return [
                                     'id' => $a->id,

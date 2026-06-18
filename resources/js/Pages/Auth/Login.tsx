@@ -187,6 +187,36 @@ export default function Login({
                 .upnvj-badge-text-main { font-size: 0.8125rem; font-weight: 700; color: white; }
                 .upnvj-badge-text-sub { font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-top: 1px; }
 
+                .video-link {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.625rem;
+                    padding: 0.75rem 1rem;
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    color: rgba(255, 255, 255, 0.85);
+                    font-size: 0.8125rem;
+                    font-weight: 500;
+                    text-decoration: none;
+                    margin-bottom: 1rem;
+                    transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+                }
+
+                .video-link:hover {
+                    background: rgba(242, 101, 34, 0.1);
+                    border-color: rgba(242, 101, 34, 0.4);
+                    color: #fff;
+                    transform: translateY(-1px);
+                }
+
+                .video-link svg {
+                    width: 16px;
+                    height: 16px;
+                    color: #F26522;
+                    fill: currentColor;
+                }
+
                 /* ── RIGHT PANEL ── */
                 .right-panel {
                     flex: 1;
@@ -501,6 +531,17 @@ export default function Login({
 
                     {/* Bottom */}
                     <div className="left-bottom">
+                        <a 
+                            href="https://www.youtube.com/watch?v=VeW2na5YwfE" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="video-link"
+                        >
+                            <svg fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.518 3.545 12 3.545 12 3.545s-7.518 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.87.508 9.388.508 9.388.508s7.518 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                            <span>Lihat Video Panduan LENTERA</span>
+                        </a>
                         <div className="upnvj-badge">
                             <div className="upnvj-badge-logo">
                                 <img src="/logo-upnvj.png" alt="Logo UPNVJ" />

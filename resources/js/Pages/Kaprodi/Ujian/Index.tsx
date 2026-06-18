@@ -162,7 +162,7 @@ export default function Index({ pengajuanUjian }: Props) {
                                     {/* Actions */}
                                     {!hasApproval && (
                                         <div className="mt-4 pt-4 border-t border-gray-50">
-                                            {(u.status === 'submitted' || u.status === 'menunggu_penguji') && (
+                                            {(u.status === 'submitted' || u.status === 'menunggu_penguji' || u.status === 'reviewed') && (
                                                 <div className="flex items-center gap-2">
                                                     <Button
                                                         size="sm"
@@ -176,7 +176,7 @@ export default function Index({ pengajuanUjian }: Props) {
                                                     <Button size="sm" variant="danger" onClick={() => { setActionId(u.id); setActionType('approve_ujian'); form.setData('status', 'rejected'); }} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}>Tolak</Button>
                                                 </div>
                                             )}
-                                            {allNilaiSubmitted && u.status === 'reviewed' && (
+                                            {allNilaiSubmitted && u.status === 'approved' && (
                                                 <div className="flex items-center gap-2">
                                                     <Button size="sm" variant="success" onClick={() => { setActionId(u.id); setActionType('approve_penilaian'); form.setData('status', 'approved'); }} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}>Approve Penilaian</Button>
                                                     <Button size="sm" variant="danger" onClick={() => { setActionId(u.id); setActionType('approve_penilaian'); form.setData('status', 'rejected'); }} icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}>Tolak Penilaian</Button>
