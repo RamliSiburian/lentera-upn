@@ -261,4 +261,181 @@ class LaporanController extends Controller
 
         return $pdf->download('Rekap_Progress_Mahasiswa_' . now()->format('Ymd') . '.pdf');
     }
+
+    public function exportBeritaAcaraPdf($id)
+    {
+        $ujian = PengajuanUjian::with([
+            'mahasiswa.user',
+            'mahasiswa.prodi.kaprodi.user',
+            'mahasiswa.pembimbing.dosen.user',
+            'tahapan',
+            'jadwal.ruangan',
+            'penguji.dosen.user',
+            'penilaian.penguji.dosen.user',
+            'approvals.kaprodi'
+        ])->findOrFail($id);
+
+        // Helper to convert number to Indonesian words
+        $terbilang = function ($angka) use (&$terbilang) {
+            $angka = (int)$angka;
+            $bilangan = [
+                '', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima',
+                'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'
+            ];
+
+            if ($angka < 12) {
+                return $bilangan[$angka];
+            } else if ($angka < 20) {
+                return $terbilang($angka - 10) . ' Belas';
+            } else if ($angka < 100) {
+                $puluh = (int)($angka / 10);
+                $sisa = $angka % 10;
+                return $bilangan[$puluh] . ' Puluh' . ($sisa ? ' ' . $terbilang($sisa) : '');
+            } else if ($angka < 200) {
+                return 'Seratus' . ($angka - 100 ? ' ' . $terbilang($angka - 100) : '');
+            } else if ($angka < 1000) {
+                $ratus = (int)($angka / 100);
+                $sisa = $angka % 100;
+                return $bilangan[$ratus] . ' Ratus' . ($sisa ? ' ' . $terbilang($sisa) : '');
+            } else if ($angka < 2000) {
+                return 'Seribu' . ($angka - 1000 ? ' ' . $terbilang($angka - 1000) : '');
+            } else if ($angka < 1000000) {
+                $ribu = (int)($angka / 1000);
+                $sisa = $angka % 1000;
+                return $terbilang($ribu) . ' Ribu' . ($sisa ? ' ' . $terbilang($sisa) : '');
+            }
+            return '';
+        };
+
+        $getHariIndonesian = function ($date) {
+            if (!$date) return '-';
+            $day = $date->format('N');
+            $days = [
+                1 => 'Senin',
+                2 => 'Selasa',
+                3 => 'Rabu',
+                4 => 'Kamis',
+                5 => 'Jumat',
+                6 => 'Sabtu',
+                7 => 'Minggu'
+            ];
+            return $days[$day] ?? '';
+        };
+
+        $getBulanIndonesian = function ($date) {
+            if (!$date) return '-';
+            $month = $date->format('n');
+            $months = [
+                1 => 'Januari',
+                2 => 'Februari',
+                3 => 'Maret',
+                4 => 'April',
+                5 => 'Mei',
+                6 => 'Juni',
+                7 => 'Juli',
+                8 => 'Agustus',
+                9 => 'September',
+                10 => 'Oktober',
+                11 => 'November',
+                12 => 'Desember'
+            ];
+            return $months[$month] ?? '';
+        };
+
+        $tanggalJadwal = $ujian->jadwal?->tanggal;
+        $hari = $tanggalJadwal ? $getHariIndonesian($tanggalJadwal) : '-';
+        $tanggalTerbilang = $tanggalJadwal ? $terbilang($tanggalJadwal->format('j')) : '-';
+        $bulan = $tanggalJadwal ? $getBulanIndonesian($tanggalJadwal) : '-';
+        $tahunTerbilang = $tanggalJadwal ? $terbilang($tanggalJadwal->format('Y')) : '-';
+
+        // Map penguji data to roles
+        $pengujiList = $ujian->penguji->sortBy('urutan');
+        $nilaiList = $ujian->penilaian;
+
+        $pengujiData = [];
+        $totalNilaiAkhir = 0;
+
+        foreach ($pengujiList as $p) {
+            $bobot = 0.0;
+            $jabatan = '';
+            if ($p->urutan === 1) {
+                $bobot = 0.25;
+                $jabatan = 'Penguji Utama';
+            } elseif ($p->urutan === 2) {
+                $bobot = 0.25;
+                $jabatan = 'Penguji Lembaga';
+            } elseif ($p->urutan === 3) {
+                $bobot = 0.50;
+                $jabatan = 'Pembimbing';
+            } else {
+                $bobot = 0.0;
+                $jabatan = 'Penguji ' . $p->urutan;
+            }
+
+            // Find grade
+            $penilaian = $nilaiList->firstWhere('penguji_id', $p->id);
+            $nilai = $penilaian ? (float)$penilaian->nilai : null;
+            $nilaiAkhir = $nilai !== null ? $nilai * $bobot : null;
+
+            if ($nilaiAkhir !== null) {
+                $totalNilaiAkhir += $nilaiAkhir;
+            }
+
+            $pengujiData[] = [
+                'nama' => $p->dosen->user->name ?? '-',
+                'nidn' => $p->dosen->nidn ?? '-',
+                'urutan' => $p->urutan,
+                'jabatan' => $jabatan,
+                'bobot_percent' => ($bobot * 100) . ' %',
+                'nilai' => $nilai !== null ? number_format($nilai, 2, ',', '.') : '-',
+                'nilai_akhir' => $nilaiAkhir !== null ? number_format($nilaiAkhir, 2, ',', '.') : '-',
+                'nilai_raw' => $nilai,
+                'catatan' => $penilaian->catatan ?? '',
+            ];
+        }
+
+        // Calculate Nilai Mutu
+        $getNilaiMutu = function ($score) {
+            if ($score >= 85.00) return 'A';
+            if ($score >= 80.00) return 'A-';
+            if ($score >= 75.00) return 'B+';
+            if ($score >= 70.00) return 'B';
+            if ($score >= 65.00) return 'B-';
+            if ($score >= 60.00) return 'C+';
+            if ($score >= 55.00) return 'C';
+            if ($score >= 40.00) return 'D';
+            return 'E';
+        };
+
+        $nilaiMutu = $totalNilaiAkhir > 0 ? $getNilaiMutu($totalNilaiAkhir) : '-';
+
+        // Check if student passed
+        $isLulus = $totalNilaiAkhir >= 55.00;
+
+        // Judul proposal/tugas akhir
+        $judul = JudulPengajuan::where('mahasiswa_id', $ujian->mahasiswa_id)
+            ->whereNotIn('status', ['rejected'])
+            ->orderBy('created_at', 'desc')->first();
+
+        // Get Kaprodi name
+        $kaprodiNama = $ujian->mahasiswa->prodi->kaprodi->user->name ?? 'Andhika Octa Indarso, M.MSI';
+
+        $pdf = Pdf::loadView('pdf.berita-acara', [
+            'ujian' => $ujian,
+            'hari' => $hari,
+            'tanggal_terbilang' => $tanggalTerbilang,
+            'bulan' => $bulan,
+            'tahun_terbilang' => $tahunTerbilang,
+            'pengujiData' => $pengujiData,
+            'totalNilaiAkhir' => number_format($totalNilaiAkhir, 2, ',', '.'),
+            'nilaiMutu' => $nilaiMutu,
+            'isLulus' => $isLulus,
+            'judul' => $judul,
+            'kaprodiNama' => $kaprodiNama,
+            'tanggalCetak' => now()->format('d F Y H:i'),
+        ])->setPaper('A4', 'portrait');
+
+        $namaMhs = str_replace(' ', '_', $ujian->mahasiswa->user->name ?? 'mahasiswa');
+        return $pdf->download('Berita_Acara_Ujian_' . $namaMhs . '.pdf');
+    }
 }
