@@ -132,10 +132,10 @@ export default function Index({ pembimbings, dosen, dosenPendingSteps = ['dosen_
                                                                 <div className="mt-3">
                                                                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">File</p>
                                                                     <div className="space-y-1">
-                                                                        {b.files.map(f => (
+                                                                        {b.files.map((f, idx) => (
                                                                             <a key={f.id} href={`/storage/${f.path_file}`} target="_blank" className="flex items-center gap-2 p-2 bg-red-50/50 rounded-lg text-sm text-red-700 hover:bg-red-50 transition-colors">
                                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                                                                {f.nama_file}
+                                                                                <span>{f.nama_file} <span className="text-xs opacity-75 font-semibold">({idx === 0 ? 'Original' : `Revisi ${idx}`})</span></span>
                                                                             </a>
                                                                         ))}
                                                                     </div>
